@@ -1,0 +1,227 @@
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
+
+@import "tailwindcss";
+
+/* ─── Tailwind v4 Theme ────────────────────────────────────────────────────── */
+@theme {
+  --color-primary-50: oklch(0.97 0.02 250);
+  --color-primary-100: oklch(0.93 0.04 250);
+  --color-primary-200: oklch(0.87 0.08 250);
+  --color-primary-300: oklch(0.78 0.12 250);
+  --color-primary-400: oklch(0.68 0.16 250);
+  --color-primary-500: oklch(0.55 0.2 250);
+  --color-primary-600: oklch(0.48 0.2 250);
+  --color-primary-700: oklch(0.40 0.18 250);
+  --color-primary-800: oklch(0.33 0.14 250);
+  --color-primary-900: oklch(0.27 0.10 250);
+  --color-primary-950: oklch(0.20 0.08 250);
+
+  --color-surface-50: oklch(0.98 0.005 260);
+  --color-surface-100: oklch(0.95 0.008 260);
+  --color-surface-200: oklch(0.91 0.01 260);
+  --color-surface-300: oklch(0.85 0.012 260);
+  --color-surface-400: oklch(0.75 0.015 260);
+  --color-surface-500: oklch(0.60 0.02 260);
+  --color-surface-600: oklch(0.45 0.02 260);
+  --color-surface-700: oklch(0.30 0.02 260);
+  --color-surface-800: oklch(0.22 0.015 260);
+  --color-surface-900: oklch(0.16 0.012 260);
+  --color-surface-950: oklch(0.12 0.01 260);
+
+  --color-accent-400: oklch(0.75 0.18 160);
+  --color-accent-500: oklch(0.65 0.2 160);
+  --color-accent-600: oklch(0.55 0.18 160);
+
+  --color-danger-400: oklch(0.70 0.2 25);
+  --color-danger-500: oklch(0.60 0.22 25);
+  --color-danger-600: oklch(0.50 0.2 25);
+
+  --color-warning-400: oklch(0.82 0.16 85);
+  --color-warning-500: oklch(0.75 0.18 85);
+
+  --color-success-400: oklch(0.78 0.16 145);
+  --color-success-500: oklch(0.68 0.18 145);
+
+  --color-dal-dark: #1A2432;
+  --color-dal-silver: #A0AEC0;
+  --color-dal-sky: #0EA5E9;
+  --color-dal-red: #DC2626;
+
+  --font-sans: 'Cairo', system-ui, sans-serif;
+  --font-family-sans: 'Cairo', system-ui, sans-serif;
+
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.4s ease-out;
+  --animate-slide-right: slide-right 0.3s ease-out;
+  --animate-scale-in: scale-in 0.2s ease-out;
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ─── Keyframes ────────────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-right {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ─── Global Styles ────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  direction: rtl;
+  font-family: 'Cairo', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Cairo', system-ui, sans-serif;
+  background-color: var(--color-surface-950);
+  color: var(--color-surface-100);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar Styling ────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-900);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-600);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-500);
+}
+
+/* ─── Selection ────────────────────────────────────────────────────────────── */
+::selection {
+  background-color: var(--color-primary-600);
+  color: white;
+}
+
+/* ─── Input Focus ──────────────────────────────────────────────────────────── */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 1px;
+}
+
+/* ─── Utility Classes ──────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-500));
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, var(--color-accent-600), var(--color-accent-400));
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-primary-400), var(--color-accent-400));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hide scrollbars for snapping carousels */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, WebKit */
+}
+
+/* ─── Printing Styles ──────────────────────────────────────────────────────── */
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset layout constraints for printing */
+  main {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ensure card backgrounds and borders print correctly */
+  .glass-card, .bg-surface-900\/50, .bg-surface-950\/60 {
+    background: none !important;
+    border: none !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+
+  /* Text color overrides */
+  .text-white, .text-surface-300, .text-surface-400, .text-primary-400, .text-accent-400 {
+    color: black !important;
+  }
+
+  /* Make sure printing tables are readable */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    color: black !important;
+    border-bottom: 1px solid #ddd !important;
+  }
+}
