@@ -290,7 +290,7 @@ export default function SettingsView() {
                         alt="الشعار الحالي"
                         className="w-10 h-10 rounded-xl object-contain bg-surface-950/80 border border-white/10 p-1 flex-shrink-0"
                         onError={(e) => {
-                          const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/';
+                          const apiBase = 'https://missingcars.pythonanywhere.com/api/';
                           const backendBase = apiBase.replace(/\/api\/?$/, '');
                           e.target.src = `${backendBase}${brandingForm.logo.startsWith('/') ? '' : '/'}${brandingForm.logo}`;
                         }}

@@ -6,12 +6,12 @@ import {
   AlertTriangle, Layers, MapPin, Hash, Loader2
 } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/';
+const API_BASE_URL = 'https://missingcars.pythonanywhere.com/api/';
 
 const getImageUrl = (url) => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/';
+  const apiBase = 'https://missingcars.pythonanywhere.com/api/';
   const backendBase = apiBase.replace(/\/api\/?$/, '');
   return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
 };
