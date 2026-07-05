@@ -647,9 +647,7 @@ export default function LandingPage() {
           <p className="text-xs text-dal-silver">
             جميع الحقوق محفوظة © {new Date().getFullYear()} {settings.site_name}
           </p>
-          <p className="text-xs text-slate-500 font-semibold pt-1">
-            Developed by Musab / Stingdev
-          </p>
+        
         </div>
       </footer>
 
