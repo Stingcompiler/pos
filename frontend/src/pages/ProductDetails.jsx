@@ -17,7 +17,7 @@ export default function ProductDetails() {
   // ──── States ────
   const [part, setPart] = useState(null);
   const [contacts, setContacts] = useState([]);
-  const [siteName, setSiteName] = useState('نظام قطع الغيار');
+  const [siteName, setSiteName] = useState('اسبير');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 

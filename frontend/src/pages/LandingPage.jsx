@@ -26,6 +26,7 @@ import api from '../api/axios';
 import { mediaUrl } from '../api/media';
 import { useCart } from '../context/useCart';
 import CheckoutModal from '../components/shop/CheckoutModal';
+import BrandMark from '../components/BrandMark';
 
 // روابط الصور تُبنى مركزياً من مساعد الميديا الموحّد (بدون أي نطاق مكتوب).
 const getImageUrl = mediaUrl;
@@ -42,7 +43,7 @@ export default function LandingPage() {
 
   // ──── States ────
   const [settings, setSettings] = useState({
-    site_name: 'محل قطع الغيار',
+    site_name: 'اسبير',
     logo: '',
     hero_title: 'أفضل قطع الغيار لسيارتك',
     hero_subtitle: 'نوفر أفضل قطع الغيار الأصلية والمضمونة لكافة أنواع السيارات بأسعار منافسة.',
@@ -153,9 +154,7 @@ export default function LandingPage() {
             {settings.logo ? (
               <img src={getImageUrl(settings.logo)} alt={settings.site_name} className="w-9 h-9 rounded-xl object-contain border border-white/10" />
             ) : (
-              <div className="w-9 h-9 rounded-xl bg-dal-red flex items-center justify-center shadow-md shadow-red-600/20">
-                <Icons.Wrench className="w-5 h-5 text-white" />
-              </div>
+              <BrandMark className="w-9 h-9 rounded-xl ring-1 ring-white/10" />
             )}
             <span className="font-bold text-white text-lg tracking-tight select-none">{settings.site_name}</span>
           </div>
@@ -259,9 +258,7 @@ export default function LandingPage() {
           >
             <div className="w-72 h-72 rounded-full bg-dal-sky/10 absolute blur-3xl animate-pulse-soft" />
             <div className="glass-card p-8 border border-white/5 relative z-10 flex flex-col items-center gap-4 text-center max-w-sm">
-              <div className="w-16 h-16 rounded-2xl bg-dal-red flex items-center justify-center shadow-lg shadow-red-600/30">
-                <Icons.Wrench className="w-8 h-8 text-white animate-bounce" />
-              </div>
+              <BrandMark className="w-16 h-16 rounded-2xl ring-1 ring-white/10 shadow-lg" />
               <h3 className="text-lg font-black text-white">{settings.site_name}</h3>
               <p className="text-xs text-slate-350 leading-relaxed">تجد معنا كافة قطع غيار المحركات، الفرامل، الكهرباء والهيكل الخارجي بأعلى جودة مع كفالة شاملة.</p>
               <div className="flex items-center gap-2 text-xs text-dal-sky font-bold">
@@ -615,9 +612,7 @@ export default function LandingPage() {
       <footer className="bg-dal-dark border-t border-dal-dark py-10 relative z-10 text-center animate-fade-in">
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-4">
           <div className="flex justify-center items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-dal-red flex items-center justify-center shadow-md">
-              <Icons.Wrench className="w-3.5 h-3.5 text-white" />
-            </div>
+            <BrandMark className="w-7 h-7 rounded-lg ring-1 ring-white/10" />
             <span className="font-bold text-white text-sm tracking-tight">{settings.site_name}</span>
           </div>
           <p className="text-xs text-dal-silver">

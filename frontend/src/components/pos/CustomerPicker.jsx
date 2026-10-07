@@ -94,22 +94,23 @@ export default function CustomerPicker({ customer, onChange }) {
   const balanceCents = customer ? toCents(customer.balance) : 0;
 
   return (
-    <div ref={containerRef} className="space-y-1.5">
+    // صف واحد: «العميل» ثم البحث وزر الإضافة، أو بطاقة العميل المختار بارتفاع الحقل نفسه.
+    <div ref={containerRef} className="flex items-center gap-2">
       {customer ? (
-        <p className="block text-xs font-semibold text-surface-400">العميل</p>
+        <p className="shrink-0 text-xs font-semibold text-surface-400">العميل</p>
       ) : (
-        <label htmlFor={`${ids}-search`} className="block text-xs font-semibold text-surface-400">العميل</label>
+        <label htmlFor={`${ids}-search`} className="shrink-0 text-xs font-semibold text-surface-400">العميل</label>
       )}
 
       {customer ? (
-        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary-600/10 border border-primary-500/20">
-          <UserRound className="w-4 h-4 text-primary-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 min-h-10 flex items-center gap-2 ps-2.5 pe-1 py-1 rounded-xl bg-primary-600/10 border border-primary-500/20">
+          <UserRound className="w-4 h-4 text-primary-400 shrink-0" aria-hidden="true" />
+          <div className="flex-1 min-w-0 leading-tight">
+            <div className="flex items-center gap-1.5 min-w-0">
               <span className="text-sm font-semibold text-white truncate">{customer.name}</span>
               <TypeBadge customer={customer} />
             </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-surface-400 mt-0.5">
+            <div className="flex flex-wrap gap-x-2 text-[11px] text-surface-400">
               <span dir="ltr">{customer.phone}</span>
               {discount > 0 && <span className="text-success-400">خصم {formatPercent(discount)}%</span>}
               {balanceCents > 0 && <span className="text-warning-400">عليه {formatCurrency(customer.balance)}</span>}
@@ -119,14 +120,14 @@ export default function CustomerPicker({ customer, onChange }) {
             type="button"
             onClick={clear}
             aria-label="إزالة العميل والبيع لعميل عام"
-            className="p-1.5 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-colors"
+            className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       ) : (
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <>
+          <div className="relative flex-1 min-w-0">
             <input
               ref={inputRef}
               id={`${ids}-search`}
@@ -199,7 +200,7 @@ export default function CustomerPicker({ customer, onChange }) {
           >
             <Plus className="w-5 h-5" />
           </button>
-        </div>
+        </>
       )}
 
       {showQuickAdd && (

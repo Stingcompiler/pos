@@ -399,13 +399,31 @@ export default function POS() {
 
   const paper = receiptSettings?.receipt_paper || '80mm';
   const discount = pricing.discountBasisPoints;
+  const cartQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const tabClass = (tab) => `h-full rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
+    activeTab === tab
+      ? 'gradient-primary text-white shadow-md shadow-primary-600/30'
+      : 'text-surface-300 hover:text-white hover:bg-white/5'
+  }`;
 
   return (
-    // الارتفاع = الشاشة ناقص ترويسة Layout (73px: py-4 + زر h-10 + الحد) وحشوة
-    // main (p-4 = 32px، ومن md: p-8 = 64px)، فيبقى زر الإتمام ظاهراً دون تمرير الصفحة.
-    <div className="animate-fade-in h-[calc(100dvh-105px)] md:h-[calc(100dvh-137px)] min-h-[32rem] flex flex-col lg:flex-row gap-5 pb-16 lg:pb-0">
-      {/* ──── Left: Search & Results ──── */}
-      <div className={`flex-1 min-h-0 flex-col min-w-0 ${activeTab === 'products' ? 'flex' : 'hidden lg:flex'}`}>
+    // من lg: عمودان بارتفاع الشاشة ناقص ترويسة Layout (73px: py-4 + زر h-10 + الحد)
+    // وحشوة main (64px)، ولكل عمود منطقة تمرير واحدة.
+    // دون lg: تبويبان. عمود البحث بارتفاع الشاشة ونتائجه تتمرر وحدها؛ والسلة بطولها
+    // الطبيعي تتمرر مع الصفحة نفسها، وشريط الإجمالي والإتمام لاصق فوق شريط التبويبات.
+    // --pos-tabbar = ارتفاع شريط التبويبات مع هامش الأمان أسفل شاشات iPhone.
+    <div
+      className="animate-fade-in flex flex-col min-h-[calc(100dvh-105px)] md:min-h-[calc(100dvh-137px)]
+        lg:flex-row lg:gap-5 lg:h-[calc(100dvh-137px)] lg:min-h-[32rem]"
+      style={{ '--pos-tabbar': 'calc(3.25rem + max(0.5rem, env(safe-area-inset-bottom)))' }}
+    >
+      {/* ──── Search & Results ──── الارتفاع دون lg = الشاشة ناقص الترويسة وحشوة main
+          العلوية (16px، ومن md: 32px) وشريط التبويبات. */}
+      <div
+        className={`min-w-0 flex-col h-[calc(100dvh-89px-var(--pos-tabbar))] md:h-[calc(100dvh-105px-var(--pos-tabbar))]
+          lg:h-auto lg:flex-1 lg:min-h-0 ${activeTab === 'products' ? 'flex' : 'hidden lg:flex'}`}
+      >
         {/* Search Bar */}
         <div className="relative mb-4 shrink-0">
           <label htmlFor="pos-search" className="sr-only">ابحث عن قطعة أو امسح الباركود</label>
@@ -436,7 +454,7 @@ export default function POS() {
         )}
 
         {/* Search Results */}
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pl-1">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 pl-1 pb-2 lg:pb-0">
           {searchError ? (
             <div role="alert" className="flex flex-col items-center justify-center py-16 text-danger-400 text-center">
               <AlertCircle className="w-12 h-12 mb-3 opacity-60" />
@@ -524,26 +542,38 @@ export default function POS() {
         </div>
       </div>
 
-      {/* ──── Right: Cart ──── */}
-      <div className={`w-full lg:w-[420px] flex-1 lg:flex-none min-h-0 flex-col glass-card overflow-hidden ${activeTab === 'cart' ? 'flex' : 'hidden lg:flex'}`}>
+      {/* ──── Cart ──── من lg عمود جانبي يتسع مع الشاشة، ودون lg تبويب كامل العرض.
+          overflow-clip (لا hidden) يقص الزوايا دون أن يكسر التصاق شريط الإتمام. */}
+      <section
+        aria-labelledby="pos-cart-title"
+        className={`flex-1 min-w-0 flex-col glass-card overflow-clip
+          lg:flex-none lg:min-h-0 lg:w-[380px] xl:w-[460px] 2xl:w-[540px]
+          ${activeTab === 'cart' ? 'flex' : 'hidden lg:flex'}`}
+      >
         {/* Cart Header */}
-        <div className="shrink-0 px-5 py-4 border-b border-white/5 flex items-center justify-between">
+        <div className="shrink-0 px-3 sm:px-4 py-3 border-b border-white/5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-primary-400" />
-            <h2 className="text-lg font-bold text-white">سلة المبيعات</h2>
+            <ShoppingCart className="w-5 h-5 text-primary-400" aria-hidden="true" />
+            <h2 id="pos-cart-title" className="text-base font-bold text-white">سلة المبيعات</h2>
           </div>
-          <span className="text-sm text-surface-400">
+          <span className="text-xs text-surface-400">
             {cart.length} عناصر
           </span>
         </div>
 
-        {/* العميل أولاً: خصمه يغيّر أسعار السلة، والآجل يحتاجه. */}
-        <div className="shrink-0 px-5 pt-4 relative z-20">
-          <CustomerPicker customer={customer} onChange={handleCustomerChange} />
-        </div>
+        {/* محتوى السلة: منطقة التمرير الوحيدة فيها (من lg)، ودون lg يتمرر مع الصفحة.
+            الهامش السفلي للحقول دون lg يُبقي الحقل المركَّز فوق شريط الإتمام اللاصق.
+            relative: عناصر sr-only (مطلقة الموضع) تُحتوى فيها فلا تطيل الصفحة نفسها. */}
+        <div
+          className="relative flex-1 flex flex-col gap-3 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain
+            max-lg:[&_input]:scroll-mb-56 max-lg:[&_select]:scroll-mb-56"
+        >
+          {/* العميل أولاً: خصمه يغيّر أسعار السلة، والآجل يحتاجه. z-10 تُبقي قائمة
+              النتائج فوق البنود وتحت ترويسة الصفحة اللاصقة. */}
+          <div className="relative z-10">
+            <CustomerPicker customer={customer} onChange={handleCustomerChange} />
+          </div>
 
-        {/* Cart Items — تتمرر وحدها ويبقى الإجمالي وزر الإتمام ظاهرين */}
-        <div className="flex-1 min-h-[6rem] overflow-y-auto p-5 space-y-3">
           {completedSale && (
             <SaleSuccess
               sale={completedSale}
@@ -557,80 +587,101 @@ export default function POS() {
           )}
 
           {cart.length > 0 ? (
-            cart.map((item) => {
-              const line = pricing.lines[item.id];
-              return (
-                <div
-                  key={item.id}
-                  className="p-4 rounded-xl bg-surface-900/50 border border-white/5 animate-slide-up"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-semibold text-white truncate">{item.name}</h4>
-                      <p className="text-xs text-surface-400 mt-0.5" dir="ltr">{item.part_number}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFromCart(item.id)}
-                      aria-label={`حذف ${item.name} من السلة`}
-                      className="p-1.5 rounded-lg text-surface-500 hover:text-danger-400 hover:bg-danger-500/10
-                        transition-all duration-200"
+            // بند في سطرين على الشاشات الضيقة (الاسم والمبلغ، ثم السعر والكمية والحذف)،
+            // وفي صف واحد متى اتسعت السلة (container query). البنود تتشارك أعمدة القائمة
+            // (subgrid) فتصطف أزرار الكمية والمبالغ كجدول.
+            <div className="@container">
+              <ul
+                className="grid gap-x-2 rounded-xl bg-surface-900/40 border border-white/5 divide-y divide-white/5
+                  grid-cols-[minmax(0,1fr)_auto_auto] @sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+              >
+                {cart.map((item) => {
+                  const line = pricing.lines[item.id];
+                  return (
+                    <li
+                      key={item.id}
+                      className="col-span-full grid grid-cols-subgrid items-center gap-y-1 px-3 py-2 animate-slide-up"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                      <h4
+                        className="col-start-1 col-span-2 row-start-1 @sm:col-span-1 min-w-0 text-sm font-semibold text-white truncate"
+                        title={item.name}
+                      >
+                        {item.name}
+                      </h4>
+                      <p className="col-start-1 row-start-2 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-surface-400">
+                        {item.part_number && (
+                          <span className="min-w-0 max-w-full flex">
+                            <span className="sr-only">رقم القطعة</span>
+                            <span dir="ltr" className="truncate px-1.5 rounded bg-surface-700/50 text-surface-300 font-mono">
+                              {item.part_number}
+                            </span>
+                          </span>
+                        )}
+                        <span className="whitespace-nowrap">
+                          {line.unitCents !== line.originalUnitCents && (
+                            <s className="text-surface-500 ml-1">{money(line.originalUnitCents)}</s>
+                          )}
+                          {money(line.unitCents)} × {item.quantity}
+                        </span>
+                      </p>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.id, -1)}
-                        aria-label={`إنقاص كمية ${item.name}`}
-                        className="w-8 h-8 rounded-lg bg-surface-800 border border-white/10 flex items-center justify-center
-                          text-surface-300 hover:text-white hover:border-primary-500/30 transition-all duration-200"
+                      <div
+                        role="group"
+                        aria-label={`كمية ${item.name}`}
+                        className="col-start-2 row-start-2 @sm:row-start-1 @sm:row-span-2
+                          flex items-center rounded-lg bg-surface-800 border border-white/10"
                       >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-10 text-center text-sm font-bold text-white">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.id, 1)}
-                        aria-label={`زيادة كمية ${item.name}`}
-                        className="w-8 h-8 rounded-lg bg-surface-800 border border-white/10 flex items-center justify-center
-                          text-surface-300 hover:text-white hover:border-primary-500/30 transition-all duration-200
-                          disabled:opacity-40 disabled:cursor-not-allowed"
-                        disabled={item.quantity >= item.stock_quantity}
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="text-left">
-                      <span className="block text-base font-bold text-accent-400">
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.id, -1)}
+                          aria-label={`إنقاص كمية ${item.name}`}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-300
+                            hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="min-w-8 px-1 text-center text-sm font-bold text-white tabular-nums">{item.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.id, 1)}
+                          aria-label={`زيادة كمية ${item.name}`}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-surface-300
+                            hover:text-white hover:bg-white/5 transition-colors
+                            disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          disabled={item.quantity >= item.stock_quantity}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <span className="col-start-3 row-start-1 @sm:row-span-2 justify-self-end text-sm font-bold text-accent-400 whitespace-nowrap tabular-nums">
                         {money(line.lineCents)}
                       </span>
-                      <span className="block text-[11px] text-surface-400">
-                        {line.unitCents !== line.originalUnitCents && (
-                          <s className="text-surface-500 ml-1">{money(line.originalUnitCents)}</s>
-                        )}
-                        {money(line.unitCents)} × {item.quantity}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(item.id)}
+                        aria-label={`حذف ${item.name} من السلة`}
+                        className="col-start-3 row-start-2 @sm:col-start-4 @sm:row-start-1 @sm:row-span-2 justify-self-end
+                          w-8 h-8 rounded-lg flex items-center justify-center text-surface-500
+                          hover:text-danger-400 hover:bg-danger-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           ) : !completedSale ? (
-            <div className="flex flex-col items-center justify-center py-16 text-surface-500">
+            <div className="flex-1 flex flex-col items-center justify-center py-12 text-surface-500">
               <ReceiptIcon className="w-10 h-10 mb-3 opacity-30" />
               <p className="text-sm">السلة فارغة</p>
             </div>
           ) : null}
-        </div>
 
-        {cart.length > 0 && (
-          <>
-            {/* Payment — يتقلّص ويتمرر عند ضيق الشاشة بدل دفع زر الإتمام للأسفل */}
-            <div className="min-h-0 overflow-y-auto px-5 py-4 border-t border-white/5">
+          {cart.length > 0 && (
+            <div className="pt-3 border-t border-white/5">
               <PaymentPanel
                 payment={payment}
                 onChange={updatePayment}
@@ -644,54 +695,56 @@ export default function POS() {
                 onProofChange={setProofFile}
               />
             </div>
+          )}
+        </div>
 
-            {/* Cart Footer */}
-            <div className="shrink-0 px-5 py-4 border-t border-white/5 space-y-3">
-              {error && (
-                <div role="alert" className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm flex items-start gap-2 animate-fade-in">
-                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
+        {/* Cart Footer — الإجمالي وزر الإتمام ظاهران دائماً: أسفل العمود من lg، ولاصقان
+            فوق شريط التبويبات دون lg. */}
+        {cart.length > 0 && (
+          <div
+            className="sticky bottom-[var(--pos-tabbar)] lg:bottom-0 z-10 shrink-0 px-3 sm:px-4 py-3 space-y-2
+              bg-surface-800 border-t border-white/10 shadow-[0_-12px_24px_-16px_rgba(0,0,0,0.8)]"
+          >
+            {error && (
+              <div role="alert" className="p-2.5 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm flex items-start gap-2 animate-fade-in">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
-              <dl className="space-y-1">
+            {/* الزر ينزل لسطر خاص به إن لم يتسع السطر للإجمالي (مبالغ كبيرة على شاشة ضيقة). */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <dl className="shrink-0 space-y-0.5">
                 {pricing.discountCents > 0 && (
                   <>
-                    <div className="flex items-center justify-between text-sm text-surface-400">
+                    <div className="flex items-center justify-between gap-3 text-[11px] text-surface-400">
                       <dt>المجموع قبل الخصم</dt>
-                      <dd>{money(pricing.subtotalCents)}</dd>
+                      <dd className="tabular-nums">{money(pricing.subtotalCents)}</dd>
                     </div>
-                    <div className="flex items-center justify-between text-sm text-success-400">
+                    <div className="flex items-center justify-between gap-3 text-[11px] text-success-400">
                       <dt>خصم العميل ({formatPercent(customer.effective_discount_percent)}%)</dt>
-                      <dd>−{money(pricing.discountCents)}</dd>
+                      <dd className="tabular-nums">−{money(pricing.discountCents)}</dd>
                     </div>
                   </>
                 )}
-                <div className="flex items-center justify-between">
-                  <dt className="text-lg font-medium text-surface-300">الإجمالي</dt>
-                  <dd className="text-2xl font-bold text-white">{money(totalCents)}</dd>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-sm font-medium text-surface-300">الإجمالي</dt>
+                  <dd className="text-xl sm:text-2xl font-bold text-white tabular-nums">{money(totalCents)}</dd>
                 </div>
                 {!plan.error && plan.creditCents > 0 && (
-                  <div className="flex items-center justify-between text-sm text-warning-400">
+                  <div className="flex items-center justify-between gap-3 text-[11px] text-warning-400">
                     <dt>منها آجل على العميل</dt>
-                    <dd>{money(plan.creditCents)}</dd>
+                    <dd className="tabular-nums">{money(plan.creditCents)}</dd>
                   </div>
                 )}
               </dl>
-
-              {plan.error && !error && (
-                <p className="text-xs text-warning-400 flex items-start gap-1.5">
-                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>{plan.error}</span>
-                </p>
-              )}
 
               <button
                 id="pos-checkout-btn"
                 type="button"
                 onClick={handleCheckout}
                 disabled={checkingOut || Boolean(plan.error)}
-                className="w-full py-4 rounded-2xl gradient-primary text-white font-bold text-lg
+                className="flex-[1_1_9rem] h-12 px-4 rounded-xl gradient-primary text-white font-bold text-base
                   hover:opacity-90 active:scale-[0.98] transition-all duration-200
                   disabled:opacity-30 disabled:cursor-not-allowed
                   flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30"
@@ -709,42 +762,52 @@ export default function POS() {
                 )}
               </button>
             </div>
-          </>
-        )}
-      </div>
 
-      {/* Mobile Tab Switcher */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('products')}
-          className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border transition-all duration-200 ${
-            activeTab === 'products'
-              ? 'gradient-primary text-white border-transparent shadow-lg shadow-primary-600/30'
-              : 'bg-surface-900/90 text-surface-300 border-white/5 backdrop-blur-sm'
-          }`}
-        >
-          <Search className="w-4 h-4" />
-          بحث المنتجات
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('cart')}
-          className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border transition-all duration-200 relative ${
-            activeTab === 'cart'
-              ? 'gradient-primary text-white border-transparent shadow-lg shadow-primary-600/30'
-              : 'bg-surface-900/90 text-surface-300 border-white/5 backdrop-blur-sm'
-          }`}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          سلة المبيعات
-          {cart.length > 0 && (
-            <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-accent-500 text-white text-[10px] font-bold flex items-center justify-center border border-surface-950 animate-bounce">
-              {cart.reduce((sum, item) => sum + item.quantity, 0)}
-            </span>
-          )}
-        </button>
-      </div>
+            {plan.error && !error && (
+              <p className="text-xs text-warning-400 flex items-start gap-1.5">
+                <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>{plan.error}</span>
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Mobile Tab Switcher — لاصق أسفل الشاشة داخل عمود المحتوى (لا fixed)، فلا يغطي
+          القائمة الجانبية الظاهرة من md. الهوامش السالبة تمدّه حتى حواف main. z-20 تُبقيه
+          تحت خلفية القائمة الجانبية المنزلقة على الهاتف. */}
+      <nav
+        aria-label="أقسام نقطة البيع"
+        className="lg:hidden sticky bottom-0 z-20 mt-auto -mx-4 -mb-4 md:-mx-8 md:-mb-8 h-[var(--pos-tabbar)]
+          px-4 md:px-8 pt-2 bg-surface-950/95 backdrop-blur-md border-t border-white/10"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="h-full grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-900 border border-white/10">
+          <button
+            type="button"
+            aria-pressed={activeTab === 'products'}
+            onClick={() => setActiveTab('products')}
+            className={tabClass('products')}
+          >
+            <Search className="w-4 h-4" aria-hidden="true" />
+            بحث المنتجات
+          </button>
+          <button
+            type="button"
+            aria-pressed={activeTab === 'cart'}
+            onClick={() => setActiveTab('cart')}
+            className={tabClass('cart')}
+          >
+            <ShoppingCart className="w-4 h-4" aria-hidden="true" />
+            سلة المبيعات
+            {cartQuantity > 0 && (
+              <span className="min-w-5 h-5 px-1.5 rounded-full bg-accent-500 text-white text-[11px] font-bold flex items-center justify-center tabular-nums">
+                {cartQuantity}
+              </span>
+            )}
+          </button>
+        </div>
+      </nav>
 
       {/* الإيصال يُطبع معزولاً عن الصفحة؛ مفتاح لكل طباعة. */}
       {printJob && receiptSettings && (

@@ -505,7 +505,7 @@ class InvoiceItem(models.Model):
 
 class SiteSetting(models.Model):
     """Singleton site configuration for public branding."""
-    site_name = models.CharField(max_length=255, default='محل قطع الغيار', verbose_name='اسم الموقع')
+    site_name = models.CharField(max_length=255, default='اسبير', verbose_name='اسم الموقع')
     logo = models.ImageField(
         upload_to='logos/',
         blank=True,

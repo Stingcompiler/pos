@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import { Wrench, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import BrandMark from '../components/BrandMark';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -51,10 +52,8 @@ export default function Login() {
         <div className="glass-card p-8 sm:p-10">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 shadow-lg shadow-primary-600/30">
-              <Wrench className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">نظام قطع الغيار</h1>
+            <BrandMark className="w-16 h-16 mb-4 rounded-2xl ring-1 ring-white/10 shadow-lg shadow-primary-600/20" />
+            <h1 className="text-2xl font-bold text-white">اسبير</h1>
             <p className="text-surface-400 mt-1">إدارة المخزون ونقطة البيع</p>
           </div>
 

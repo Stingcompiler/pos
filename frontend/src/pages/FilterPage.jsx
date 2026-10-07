@@ -41,7 +41,7 @@ export default function FilterPage() {
   const [partsLoading, setPartsLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [partsError, setPartsError] = useState('');
-  const [siteName, setSiteName] = useState('محل قطع الغيار');
+  const [siteName, setSiteName] = useState('اسبير');
   // رقم آخر طلب: ردّ بحث قديم يصل متأخراً لا يكتب فوق نتائج البحث الحالي.
   const requestId = useRef(0);
 

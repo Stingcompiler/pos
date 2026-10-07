@@ -21,8 +21,8 @@ export default defineConfig({
       scope: '/',
       includeAssets: ['favicon.svg', 'icon.svg', 'icon-maskable.svg'],
       manifest: {
-        name: 'نظام قطع الغيار — نقطة البيع والمخزون',
-        short_name: 'قطع الغيار',
+        name: 'اسبير — نقطة البيع والمخزون',
+        short_name: 'اسبير',
         description: 'نظام إدارة قطع غيار السيارات: المخزون، نقطة البيع، والطلبات الخارجية',
         lang: 'ar',
         dir: 'rtl',

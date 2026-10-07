@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Banknote, CalendarClock, ImagePlus, Landmark, Split, X } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
 import { centsToAmount, fromCents, parseAmountInput } from './money';
@@ -39,16 +39,24 @@ function AmountInput({ id, label, value, onChange, placeholder = '0.00' }) {
 /** المبلغ المستلم والباقي للعميل — للعرض فقط، المبلغ المسجّل هو الإجمالي. */
 function CashTendered({ id, totalCents, tendered, onTenderedChange }) {
   const tenderedCents = parseAmountInput(tendered);
+  const hasChange = tenderedCents > 0 && tenderedCents >= totalCents;
   return (
     <div className="space-y-1.5">
-      <AmountInput id={id} label="المبلغ المستلم (اختياري)" value={tendered} onChange={onTenderedChange} />
+      {/* الحقل والباقي جنباً إلى جنب: الباقي يظهر بجوار المبلغ فور كتابته. */}
+      <div className="grid grid-cols-2 gap-2 items-end">
+        <AmountInput id={id} label="المبلغ المستلم (اختياري)" value={tendered} onChange={onTenderedChange} />
+        <div aria-live="polite">
+          {hasChange && (
+            <p>
+              <span className={labelClass}>الباقي للعميل</span>
+              <strong className="h-10 px-3 rounded-xl bg-success-500/10 border border-success-500/20 flex items-center text-base text-success-400 tabular-nums">
+                {money(tenderedCents - totalCents)}
+              </strong>
+            </p>
+          )}
+        </div>
+      </div>
       {Number.isNaN(tenderedCents) && <p className="text-xs text-danger-400">مبلغ غير صالح.</p>}
-      {tenderedCents > 0 && tenderedCents >= totalCents && (
-        <p className="text-sm text-surface-300 flex items-center justify-between">
-          <span>الباقي للعميل</span>
-          <strong className="text-lg text-success-400">{money(tenderedCents - totalCents)}</strong>
-        </p>
-      )}
       {tenderedCents > 0 && tenderedCents < totalCents && (
         <p className="text-xs text-warning-400">
           المبلغ المستلم أقل من الإجمالي بـ {money(totalCents - tenderedCents)}.
@@ -75,7 +83,7 @@ function BankFields({ ids, payment, onChange, bankAccounts, bankAccountsFailed, 
   };
 
   return (
-    <div className="space-y-2.5 pt-2.5 border-t border-white/5 animate-fade-in">
+    <div className="space-y-2 pt-2.5 border-t border-white/5 animate-fade-in">
       {bankAccounts.length > 0 ? (
         <div>
           <label htmlFor={`${ids}-account`} className={labelClass}>الحساب المحوَّل إليه *</label>
@@ -186,16 +194,16 @@ function CreditSummary({ ids, customer, payment, onChange, totalCents }) {
   const exceeds = !credit.allowed || newBalanceCents > credit.limitCents;
 
   return (
-    <div className="space-y-2.5 animate-fade-in">
+    <div className="space-y-2 animate-fade-in">
       <dl className="grid grid-cols-3 gap-1.5 text-center">
         {[
           ['الرصيد الحالي', credit.balanceCents, 'text-white'],
           ['حد الائتمان', credit.limitCents, 'text-white'],
           ['المتاح', credit.availableCents, credit.allowed ? 'text-success-400' : 'text-danger-400'],
         ].map(([label, cents, color]) => (
-          <div key={label} className="p-2 rounded-xl bg-surface-900/50 border border-white/5">
-            <dt className="text-[11px] text-surface-400">{label}</dt>
-            <dd className={`text-xs font-bold mt-0.5 ${color}`}>{money(cents)}</dd>
+          <div key={label} className="px-1.5 py-1.5 rounded-xl bg-surface-900/50 border border-white/5 min-w-0">
+            <dt className="text-[11px] text-surface-400 truncate">{label}</dt>
+            <dd className={`text-xs font-bold mt-0.5 tabular-nums truncate ${color}`}>{money(cents)}</dd>
           </div>
         ))}
       </dl>
@@ -231,33 +239,49 @@ export default function PaymentPanel({
   bankAccounts, bankAccountsFailed, tendered, onTenderedChange, proofFile, onProofChange,
 }) {
   const ids = useId();
+  const rootRef = useRef(null);
   const mode = payment.mode;
   const bankProps = { ids, payment, onChange, bankAccounts, bankAccountsFailed, proofFile, onProofChange };
 
   const cashCents = parseAmountInput(payment.cashAmount);
   const canFillTransfer = mode === 'mixed' && cashCents > 0 && cashCents < totalCents;
 
+  // حقول الطريقة الجديدة تظهر أسفل القسم: عند تغيير الطريقة يُمرَّر القسم ليظهر كاملاً
+  // إن أمكن بدل أن يبحث الكاشير عنها. scroll-margin دون lg يُبقيه فوق شريط الإتمام اللاصق.
+  const shownModeRef = useRef(mode);
+  useEffect(() => {
+    if (shownModeRef.current === mode) return;
+    shownModeRef.current = mode;
+    rootRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [mode]);
+
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="space-y-3 max-lg:scroll-mt-24 max-lg:scroll-mb-56">
       <div>
         <p id={`${ids}-mode`} className="block text-xs font-semibold text-surface-400 mb-1.5">طريقة الدفع</p>
-        <div role="group" aria-labelledby={`${ids}-mode`} className="grid grid-cols-4 gap-1.5">
+        {/* شريط مقسّم واحد: الأيقونة بجوار الاسم، فيتسع للأربعة على شاشة 360px. */}
+        <div
+          role="group"
+          aria-labelledby={`${ids}-mode`}
+          className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-surface-900/60 border border-white/10"
+        >
           {MODES.map((item) => {
             const Icon = item.icon;
+            const active = mode === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
-                aria-pressed={mode === item.id}
+                aria-pressed={active}
                 onClick={() => onChange({ mode: item.id })}
-                className={`h-12 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center gap-0.5 transition-all ${
-                  mode === item.id
-                    ? 'bg-primary-600/25 border-primary-500/60 text-white'
-                    : 'bg-surface-900/50 border-white/10 text-surface-400 hover:text-white hover:border-white/20'
+                className={`h-9 min-w-0 px-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
+                  active
+                    ? 'bg-primary-600 text-white shadow-sm shadow-primary-600/40'
+                    : 'text-surface-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                {item.label}
+                <Icon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
