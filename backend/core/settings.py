@@ -430,3 +430,7 @@ DASHBOARD_BASE_URL = os.environ.get('DASHBOARD_BASE_URL', '').rstrip('/')
 # ─────────────────────────────────────────────────────────────────────────────
 if 'test' in sys.argv:
     PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+    # عميل الاختبار يرسل HTTP عادياً؛ مع DEBUG=False (كما في CI بلا .env) كانت
+    # إعادة التوجيه إلى HTTPS تردّ 301 على كل طلب. بقية إعدادات الأمان الإنتاجية
+    # (الكوكيز الآمنة، CSRF) تبقى مفعّلة في الاختبار.
+    SECURE_SSL_REDIRECT = False
