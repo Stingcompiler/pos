@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { FolderOpen, Plus, Edit3, Trash2, X, Loader2, Save, Image as ImageIcon } from 'lucide-react';
 
 export default function Categories() {
@@ -26,7 +26,11 @@ export default function Categories() {
     try {
       const res = await api.get('categories/');
       setCategories(res.data.results || res.data);
-    } catch {} finally { setLoading(false); }
+    } catch {
+      // نتجاهل الخطأ: تبقى القائمة كما هي، ويُعرض الخطأ عند الحفظ فقط.
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openCreate = () => {

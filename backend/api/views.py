@@ -1,34 +1,91 @@
 """
-API Views for the Auto Spare Parts POS system.
-Includes custom auth views (login/logout/refresh/me) and CRUD viewsets.
+واجهات الـ API لنظام قطع الغيار.
+
+منطق المخزون الحسّاس مفوَّض بالكامل إلى api.services. المصادقة تعتمد
+توكنات JWT داخل كوكيز HttpOnly قابلة للإبطال (blacklist) عند الخروج
+أو التدوير.
 """
+
+import logging
+import re
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
-from django.db.models import Sum, Count, Q, F
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.db.models import (
+    Sum,
+    Count,
+    Q,
+    F,
+    ProtectedError,
+)
+from django.db.models.functions import TruncDay, TruncMonth, TruncWeek, TruncYear
+from django.http import HttpResponse
 from django.utils import timezone
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.decorators import api_view, permission_classes, action, throttle_classes
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from .models import Category, CarModel, SparePart, Invoice, InvoiceItem, SiteSetting, ContactMethod, ContactMessage, Customer, Supplier, SupplyDeal, PublicOrder, PublicOrderItem, Notification
+from . import importers, reports, services
+from .authentication import enforce_csrf
+from .search import compact, search_parts
+from .models import (
+    Category,
+    CarModel,
+    SparePart,
+    Invoice,
+    SiteSetting,
+    ContactMethod,
+    ContactMessage,
+    Customer,
+    Payment,
+    Supplier,
+    SupplyDeal,
+    PublicOrder,
+    Notification,
+    StockMovement,
+)
 from .serializers import (
     UserSerializer, UserCreateSerializer,
     CategorySerializer, CarModelSerializer,
     SparePartSerializer, SparePartListSerializer,
     InvoiceSerializer, InvoiceListSerializer,
-    SiteSettingSerializer, ContactMethodSerializer, ContactMessageSerializer, PublicSparePartSerializer,
-    CustomerSerializer, SupplierSerializer, SupplyDealSerializer, SupplierDetailSerializer,
-    PublicOrderSerializer, PublicOrderItemSerializer, NotificationSerializer,
+    SiteSettingSerializer, BusinessSettingsSerializer, ReceiptSettingsSerializer,
+    ContactMethodSerializer, ContactMessageSerializer, PublicSparePartSerializer,
+    CustomerSerializer, CollectionSerializer, PaymentSerializer,
+    SaleReturnInputSerializer, SaleReturnSerializer,
+    SupplierSerializer, SupplyDealSerializer, SupplierDetailSerializer,
+    PublicOrderSerializer, NotificationSerializer, StockMovementSerializer,
+    business_error, PRIVILEGED_ROLES,
 )
-from .permissions import RoleBasedPermission, IsManager
+from .permissions import RoleBasedPermission, IsManager, IsManagerOrSupervisor
 
 User = get_user_model()
+logger = logging.getLogger('api')
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Throttling scopes
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class LoginRateThrottle(AnonRateThrottle):
+    """حد أقصى لمحاولات تسجيل الدخول — يحمي من هجمات التخمين."""
+    scope = 'login'
+
+
+class PublicWriteThrottle(AnonRateThrottle):
+    """حد أقصى لعمليات الكتابة العامة (طلبات/رسائل) — يمنع الإغراق."""
+    scope = 'public_write'
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -37,33 +94,70 @@ User = get_user_model()
 
 def _set_auth_cookies(response, access_token, refresh_token):
     """Helper to set HttpOnly auth cookies on a response."""
+    common = {
+        'httponly': settings.AUTH_COOKIE_HTTP_ONLY,
+        'samesite': settings.AUTH_COOKIE_SAMESITE,
+        'secure': settings.AUTH_COOKIE_SECURE,
+        'path': settings.AUTH_COOKIE_PATH,
+        # None يعني «الدومين الحالي» — وهو الصحيح للتنصيب على أصل واحد.
+        'domain': settings.AUTH_COOKIE_DOMAIN,
+    }
+    # عمر كل كوكي يطابق عمر الرمز الذي يحمله: رمز الوصول 30 دقيقة، ورمز
+    # التحديث 7 أيام ليصمد عبر جلسات المتصفح.
     response.set_cookie(
         key=settings.AUTH_COOKIE,
         value=str(access_token),
-        httponly=settings.AUTH_COOKIE_HTTP_ONLY,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        secure=settings.AUTH_COOKIE_SECURE,
-        path=settings.AUTH_COOKIE_PATH,
-        max_age=settings.AUTH_COOKIE_MAX_AGE,
+        max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE,
+        **common,
     )
     response.set_cookie(
         key=settings.AUTH_COOKIE_REFRESH,
         value=str(refresh_token),
-        httponly=settings.AUTH_COOKIE_HTTP_ONLY,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        secure=settings.AUTH_COOKIE_SECURE,
-        path=settings.AUTH_COOKIE_PATH,
         max_age=settings.AUTH_COOKIE_MAX_AGE,
+        **common,
     )
     return response
 
 
+def _clear_auth_cookies(response):
+    # delete_cookie تقبل path وdomain وsamesite فقط (لا max_age/httponly).
+    # تمرير domain مطلوب وإلا بقيت الكوكي عالقة عند النشر على دومين محدّد.
+    response.delete_cookie(
+        settings.AUTH_COOKIE,
+        path=settings.AUTH_COOKIE_PATH,
+        domain=settings.AUTH_COOKIE_DOMAIN,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+    response.delete_cookie(
+        settings.AUTH_COOKIE_REFRESH,
+        path=settings.AUTH_COOKIE_PATH,
+        domain=settings.AUTH_COOKIE_DOMAIN,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+    return response
+
+
+@ensure_csrf_cookie
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def csrf_view(request):
+    """
+    ضبط كوكي csrftoken وإرجاع الرمز.
+
+    الواجهة تستدعيها قبل أول طلب كتابة إن لم تجد الكوكي، ثم ترسل الرمز في
+    ترويسة X-CSRFToken مع كل طلب غير آمن (انظر api.authentication.enforce_csrf).
+    """
+    return Response({'csrfToken': get_token(request)})
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginRateThrottle])
 def login_view(request):
-    """
-    Authenticate user, set HttpOnly cookies, and return user data.
-    """
+    """Authenticate user, set HttpOnly cookies, and return user data."""
+    # الدخول والتحديث والخروج تكتب كوكيز المصادقة، فتخضع لـ CSRF مثل بقية
+    # طلبات الكتابة حتى لا يستطيع موقع آخر تنفيذها باسم المتصفح.
+    enforce_csrf(request)
     username = request.data.get('username')
     password = request.data.get('password')
 
@@ -76,22 +170,32 @@ def login_view(request):
     user = authenticate(request, username=username, password=password)
 
     if user is None:
+        # تحذير مهم: ModelBackend.authenticate يشترط is_active فيعيد None
+        # للحساب المعطّل أيضاً. لذلك فحص `not user.is_active` الذي كان هنا
+        # كوداً ميتاً لا يُنفَّذ أبداً، والموظف المعطّل كان يرى «بيانات
+        # الدخول غير صحيحة» فيظنّ أنه نسي كلمة المرور ويعيد المحاولات حتى
+        # يُقفل بحدّ المعدّل.
+        #
+        # نميّز الحالتين هنا، لكن بلا كشف وجود الحساب لغريب: التمييز يحدث
+        # فقط لمن أثبت معرفته بكلمة المرور الصحيحة.
+        inactive_user = User.objects.filter(username=username).first()
+        if (
+            inactive_user is not None
+            and not inactive_user.is_active
+            and inactive_user.check_password(password)
+        ):
+            return Response(
+                {'error': 'هذا الحساب غير مفعل، تواصل مع المدير.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         return Response(
             {'error': 'بيانات الدخول غير صحيحة'},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if not user.is_active:
-        return Response(
-            {'error': 'هذا الحساب غير مفعل'},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    # Generate tokens
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
 
-    # Build response with user data
     response = Response({
         'id': user.id,
         'username': user.username,
@@ -99,27 +203,31 @@ def login_view(request):
         'first_name': user.first_name,
         'last_name': user.last_name,
     })
-
-    # Set HttpOnly cookies
     _set_auth_cookies(response, access, refresh)
-
     return response
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def logout_view(request):
-    """Clear the HttpOnly auth cookies."""
+    """إبطال رمز التحديث فعلياً (blacklist) ثم مسح الكوكيز."""
+    enforce_csrf(request)
+    refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
+    if refresh_token:
+        try:
+            RefreshToken(refresh_token).blacklist()
+        except (TokenError, AttributeError):
+            logger.info('محاولة خروج برمز تحديث غير صالح.')
+
     response = Response({'message': 'تم تسجيل الخروج بنجاح'})
-    response.delete_cookie(settings.AUTH_COOKIE, path=settings.AUTH_COOKIE_PATH)
-    response.delete_cookie(settings.AUTH_COOKIE_REFRESH, path=settings.AUTH_COOKIE_PATH)
-    return response
+    return _clear_auth_cookies(response)
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def refresh_view(request):
-    """Refresh the access token using the refresh token cookie."""
+    """Refresh the access token using the refresh token cookie (with rotation)."""
+    enforce_csrf(request)
     refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
 
     if not refresh_token:
@@ -130,22 +238,31 @@ def refresh_view(request):
 
     try:
         refresh = RefreshToken(refresh_token)
-        new_access = refresh.access_token
-
-        # Rotate refresh token
-        new_refresh = RefreshToken.for_user(
-            User.objects.get(id=refresh.payload.get('user_id'))
-        )
-
-        response = Response({'message': 'تم تحديث الرمز بنجاح'})
-        _set_auth_cookies(response, new_access, new_refresh)
-        return response
-
+        user = User.objects.get(id=refresh.payload.get('user_id'))
     except (TokenError, User.DoesNotExist):
         return Response(
             {'error': 'رمز التحديث غير صالح'},
             status=status.HTTP_401_UNAUTHORIZED,
         )
+
+    if not user.is_active:
+        try:
+            refresh.blacklist()
+        except (TokenError, AttributeError):
+            pass
+        response = Response({'error': 'هذا الحساب غير مفعل'}, status=status.HTTP_403_FORBIDDEN)
+        return _clear_auth_cookies(response)
+
+    # تدوير: إبطال الرمز القديم وإصدار رمز جديد.
+    try:
+        refresh.blacklist()
+    except (TokenError, AttributeError):
+        pass
+
+    new_refresh = RefreshToken.for_user(user)
+    response = Response({'message': 'تم تحديث الرمز بنجاح'})
+    _set_auth_cookies(response, new_refresh.access_token, new_refresh)
+    return response
 
 
 @api_view(['GET'])
@@ -163,48 +280,48 @@ def me_view(request):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DASHBOARD STATS VIEW
+# DASHBOARD STATS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsManagerOrSupervisor])
 def dashboard_stats(request):
-    """Return dashboard statistics."""
-    today = timezone.now().date()
+    """إحصائيات لوحة التحكم: مبيعات صافية من المرتجعات، مخزون، طلبات، وديون."""
+    # اليوم بتوقيت المؤسسة: عند 01:30 في الخرطوم يكون تاريخ UTC هو أمس.
+    today = timezone.localdate()
+    today_start, today_end = services.day_bounds(today)
 
-    total_parts = SparePart.objects.count()
-    low_stock_count = SparePart.objects.filter(
-        stock_quantity__lte=F('min_stock_alert')
-    ).count()
-    today_invoices = Invoice.objects.filter(created_at__date=today)
-    today_count = today_invoices.count()
-    today_revenue = today_invoices.aggregate(
-        total=Sum('total_amount')
-    )['total'] or 0
+    low_stock_qs = SparePart.objects.filter(stock_quantity__lte=F('min_stock_alert'))
+    today_figures = reports.period_figures(today_start, today_end)
+    total_figures = reports.period_figures()
 
-    total_invoices = Invoice.objects.count()
-    total_revenue = Invoice.objects.aggregate(
-        total=Sum('total_amount')
-    )['total'] or 0
+    low_stock_items = low_stock_qs.values(
+        'id', 'name', 'part_number', 'stock_quantity', 'min_stock_alert'
+    ).order_by('stock_quantity')[:10]
 
-    # Public e-commerce order stats
-    total_public_orders = PublicOrder.objects.count()
-    pending_public_orders = PublicOrder.objects.filter(status=PublicOrder.Status.PENDING).count()
-
-    # Low stock items
-    low_stock_items = SparePart.objects.filter(
-        stock_quantity__lte=F('min_stock_alert')
-    ).values('id', 'name', 'part_number', 'stock_quantity', 'min_stock_alert')[:10]
+    today_collections = Payment.objects.filter(
+        kind=Payment.Kind.COLLECTION, created_at__gte=today_start, created_at__lt=today_end,
+    ).aggregate(v=Sum('amount'))['v'] or 0
 
     return Response({
-        'total_parts': total_parts,
-        'low_stock_count': low_stock_count,
-        'today_invoices': today_count,
-        'today_revenue': float(today_revenue),
-        'total_invoices': total_invoices,
-        'total_revenue': float(total_revenue),
-        'total_public_orders': total_public_orders,
-        'pending_public_orders': pending_public_orders,
+        'currency': settings.BASE_CURRENCY,
+        'total_parts': SparePart.objects.count(),
+        'low_stock_count': low_stock_qs.count(),
+        'today_invoices': today_figures['orders'],
+        'today_revenue': float(today_figures['revenue']),
+        'today_profit': float(today_figures['profit']),
+        'today_returns': float(today_figures['returns_total']),
+        'today_credit_sales': float(today_figures['credit_sales']),
+        'today_collections': float(today_collections),
+        'today_expenses': float(reports.expenses_total(today, today + timedelta(days=1))),
+        'total_invoices': total_figures['orders'],
+        'total_revenue': float(total_figures['revenue']),
+        'total_profit': float(total_figures['profit']),
+        'outstanding_credit': float(services.total_outstanding_credit()),
+        'total_public_orders': PublicOrder.objects.count(),
+        'pending_public_orders': PublicOrder.objects.filter(
+            status=PublicOrder.Status.PENDING
+        ).count(),
         'low_stock_items': list(low_stock_items),
     })
 
@@ -213,10 +330,35 @@ def dashboard_stats(request):
 # CRUD VIEWSETS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class UserViewSet(viewsets.ModelViewSet):
+class ProtectedDeleteMixin:
+    """
+    تحويل ProtectedError إلى 400 برسالة عربية بدل خطأ 500.
+
+    النماذج تستخدم `on_delete=models.PROTECT` في مواضع مقصودة (فئة لها قطع،
+    قطعة لها فواتير أو طلبات أو حركات مخزون، كاشير له فواتير). بدون هذا
+    المعالج يرى المستخدم «خطأ في الخادم» بدل رسالة تشرح سبب المنع.
+    """
+
+    protected_delete_message = 'لا يمكن حذف هذا السجل لوجود بيانات مرتبطة به.'
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'detail': self.protected_delete_message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class UserViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     """CRUD for users — Manager only."""
     queryset = User.objects.all().order_by('-date_joined')
     permission_classes = [IsAuthenticated, IsManager]
+    protected_delete_message = (
+        'لا يمكن حذف هذا المستخدم لأنه أنشأ فواتير أو حركات مخزون مسجّلة. '
+        'السجل المحاسبي يحتاج معرف منشئها — عطّل الحساب بدل حذفه.'
+    )
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -224,12 +366,16 @@ class UserViewSet(viewsets.ModelViewSet):
         return UserSerializer
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
+class CategoryViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     """CRUD for categories."""
-    queryset = Category.objects.all()
+    queryset = Category.objects.annotate(annotated_parts_count=Count('spare_parts'))
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated, RoleBasedPermission]
     search_fields = ['name']
+    protected_delete_message = (
+        'لا يمكن حذف هذه الفئة لاحتوائها على قطع غيار. انقل قطعها إلى فئة '
+        'أخرى أو احذفها أولاً.'
+    )
 
 
 class CarModelViewSet(viewsets.ModelViewSet):
@@ -241,13 +387,48 @@ class CarModelViewSet(viewsets.ModelViewSet):
     filterset_fields = ['brand']
 
 
-class SparePartViewSet(viewsets.ModelViewSet):
+def find_part_by_code(code: str):
+    """
+    قطعة بمطابقة تامة لرمز ممسوح أو مكتوب: الباركود ثم رقم القطعة ثم الرقم
+    الأصلي (بعد إزالة المسافات والشرطات). قارئ الباركود يكتب الرمز ثم Enter.
+    """
+    code = (code or '').strip()
+    if not code:
+        return None
+    part = SparePart.objects.filter(Q(barcode=code) | Q(part_number__iexact=code)).first()
+    if part is not None:
+        return part
+    key = compact(code)
+    if not key:
+        return None
+    for candidate in search_parts(SparePart.objects.all(), code)[:20]:
+        if key in (compact(candidate.part_number), compact(candidate.oem_number), compact(candidate.barcode)):
+            return candidate
+    return None
+
+
+class SparePartViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     """CRUD for spare parts with search and filtering."""
     queryset = SparePart.objects.select_related('category', 'supplier').prefetch_related('compatible_cars')
     permission_classes = [IsAuthenticated, RoleBasedPermission]
-    search_fields = ['name', 'part_number', 'shelf_location']
-    filterset_fields = ['category', 'stock_quantity', 'compatible_cars', 'is_featured']
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+    protected_delete_message = (
+        'لا يمكن حذف قطعة الغيار لأن لها فواتير أو طلبات أو حركات مخزون '
+        'مسجّلة. هذه البيانات محميّة لسلامة السجل المحاسبي والتدقيقي.'
+    )
+    filterset_fields = ['category', 'compatible_cars', 'is_featured', 'supplier', 'quality_grade']
     ordering_fields = ['name', 'selling_price', 'stock_quantity', 'created_at']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # البحث الموحّد (حروف عربية موحّدة، أسماء دارجة، أرقام بلا فواصل) بدل
+        # SearchFilter الذي يطابق النص حرفياً.
+        query = self.request.query_params.get('search', '').strip()
+        if query:
+            qs = search_parts(qs, query)
+        if self.request.query_params.get('low_stock') in ('1', 'true'):
+            qs = qs.filter(stock_quantity__lte=F('min_stock_alert'))
+        return qs.distinct() if self.request.query_params.get('compatible_cars') else qs
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -256,53 +437,250 @@ class SparePartViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='search-pos')
     def search_pos(self, request):
-        """Optimized search endpoint for POS screen."""
+        """
+        بحث نقطة البيع: المطابقة التامة للرمز (باركود/رقم) أولاً، ثم البحث الموحّد.
+        """
         query = request.query_params.get('q', '').strip()
         if not query:
             return Response([])
 
-        parts = SparePart.objects.filter(
-            Q(name__icontains=query) |
-            Q(part_number__icontains=query)
-        ).filter(stock_quantity__gt=0).select_related('category')[:20]
+        base = SparePart.objects.select_related('category', 'supplier').prefetch_related('compatible_cars')
+        exact = find_part_by_code(query)
+        parts = list(search_parts(base.filter(stock_quantity__gt=0), query)[:20])
+        if exact is not None and exact.stock_quantity > 0:
+            parts = [exact] + [part for part in parts if part.pk != exact.pk][:19]
 
-        serializer = SparePartListSerializer(parts, many=True)
+        serializer = SparePartListSerializer(parts, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='lookup')
+    def lookup(self, request):
+        """قطعة بمطابقة تامة لرمز ممسوح (للجرد وقارئ الباركود)."""
+        part = find_part_by_code(request.query_params.get('code', ''))
+        if part is None:
+            return Response({'detail': 'لا توجد قطعة بهذا الرمز.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(SparePartListSerializer(part, context=self.get_serializer_context()).data)
+
+    @action(detail=True, methods=['get'], url_path='movements')
+    def movements(self, request, pk=None):
+        """سجل حركات المخزون لقطعة معيّنة."""
+        part = self.get_object()
+        movements = part.stock_movements.select_related('created_by')[:100]
+        return Response(
+            StockMovementSerializer(movements, many=True, context=self.get_serializer_context()).data
+        )
+
+    @action(detail=True, methods=['post'], url_path='adjust-stock')
+    def adjust_stock(self, request, pk=None):
+        """تسوية يدوية لكمية المخزون — للمدير/المشرف فقط."""
+        if request.user.role not in PRIVILEGED_ROLES:
+            return Response(
+                {'detail': 'غير مصرح بتسوية المخزون.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        part = self.get_object()
+        new_quantity = request.data.get('stock_quantity')
+        if new_quantity in (None, ''):
+            return Response(
+                {'detail': 'يجب تمرير stock_quantity.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reason = (request.data.get('reason') or '').strip()
+        try:
+            part = services.adjust_stock(
+                part.pk, int(new_quantity), user=request.user,
+                reference=f'تسوية يدوية: {reason}'[:100] if reason else 'تسوية يدوية',
+            )
+        except (services.InventoryError, ValueError) as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(SparePartSerializer(part, context=self.get_serializer_context()).data)
+
+    # ── الاستيراد والتصدير ─────────────────────────────────────────────
+
+    @action(detail=False, methods=['post'], url_path='import')
+    def import_parts(self, request):
+        """
+        استيراد من Excel/CSV. dry_run=1 (الافتراضي) يعيد معاينة بالأخطاء دون
+        حفظ؛ dry_run=0 يطبّق الملف كاملاً، ويُرفض إن بقيت أخطاء.
+        """
+        if request.user.role not in PRIVILEGED_ROLES:
+            return Response({'detail': 'غير مصرح بالاستيراد.'}, status=status.HTTP_403_FORBIDDEN)
+        uploaded = request.FILES.get('file')
+        if uploaded is None:
+            return Response({'detail': 'أرفق ملف Excel أو CSV.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        dry_run = str(request.data.get('dry_run', '1')).lower() not in ('0', 'false')
+        update_existing = str(request.data.get('update_existing', '0')).lower() in ('1', 'true')
+        try:
+            records = importers.parse_rows(importers.read_rows(uploaded))
+        except importers.ImportFileError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        plan = importers.plan_import(records, update_existing=update_existing)
+        summary = importers.summarize(plan)
+        if dry_run:
+            return Response({**summary, 'applied': False})
+        if plan['errors']:
+            return Response(
+                {**summary, 'applied': False,
+                 'detail': 'صحّح الأخطاء في الملف ثم أعد رفعه؛ لم يُحفظ أي صف.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        importers.apply_import(plan, user=request.user)
+        return Response({**summary, 'applied': True})
+
+    @action(detail=False, methods=['get'], url_path='export')
+    def export_parts(self, request):
+        """تصدير القطع (بعد تطبيق البحث والتصفية) إلى ملف Excel."""
+        parts = self.filter_queryset(self.get_queryset()).order_by('name')
+        rows = importers.export_rows(parts, include_costs=request.user.role in PRIVILEGED_ROLES)
+        return excel_response(importers.rows_to_xlsx(rows), 'spare-parts.xlsx')
+
+    @action(detail=False, methods=['get'], url_path='import-template')
+    def import_template(self, request):
+        """قالب الاستيراد: عناوين الأعمدة العربية وصف مثال."""
+        header = [label for _, label in importers.EXPORT_COLUMNS]
+        example = ['04152-YZZA1', 'فلتر زيت', 'فلاتر', 'Toyota', '04152-YZZA1', 'أصلي',
+                   'فلتر زيت هايلوكس', '', 1200, 1800, 10, 3, 'A-3', '']
+        return excel_response(importers.rows_to_xlsx([header, example], 'قالب'), 'parts-template.xlsx')
+
+
+def excel_response(content: bytes, filename: str) -> HttpResponse:
+    response = HttpResponse(
+        content,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+IDEMPOTENCY_KEY_PATTERN = re.compile(r'[A-Za-z0-9_.:\-]{1,64}')
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
-    """CRUD for invoices with nested items."""
-    queryset = Invoice.objects.select_related('cashier').prefetch_related('items__spare_part')
+    """
+    إنشاء وقراءة الفواتير.
+
+    الفواتير غير قابلة للتعديل أو الحذف بعد إنشائها لأن ذلك يفسد المخزون
+    والسجل المحاسبي؛ يمكن فقط الإنشاء والقراءة، والتصحيح بالمرتجع.
+    """
+    queryset = Invoice.objects.select_related('cashier', 'customer').prefetch_related(
+        'items__spare_part', 'items__return_items', 'payments__bank_account',
+        'payments__created_by', 'payments__verified_by',
+        'returns__items__invoice_item__spare_part', 'returns__created_by',
+    )
     permission_classes = [IsAuthenticated, RoleBasedPermission]
     ordering_fields = ['created_at', 'total_amount']
+    http_method_names = ['get', 'post', 'head', 'options']
 
     def get_serializer_class(self):
         if self.action == 'list':
             return InvoiceListSerializer
         return InvoiceSerializer
 
+    def create(self, request, *args, **kwargs):
+        """
+        إنشاء فاتورة مع دعم ترويسة Idempotency-Key.
+
+        الواجهة تولّد مفتاحاً ثابتاً لكل عملية بيع؛ إن نجح البيع وانقطع الرد
+        ثم أُعيد الطلب بالمفتاح نفسه، تُعاد الفاتورة الأصلية بحالة 200 دون
+        خصم جديد. المفتاح نفسه بمحتوى مختلف يُرفض بحالة 422.
+        """
+        idempotency_key = request.META.get('HTTP_IDEMPOTENCY_KEY', '').strip() or None
+        if idempotency_key is not None and not IDEMPOTENCY_KEY_PATTERN.fullmatch(idempotency_key):
+            return Response(
+                {'detail': 'ترويسة Idempotency-Key غير صالحة (حتى 64 حرفاً من الأحرف '
+                           'والأرقام و - _ . :).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        invoice = serializer.save(idempotency_key=idempotency_key)
+
+        replayed = getattr(invoice, 'idempotent_replay', False)
+        response = Response(
+            self.get_serializer(self.get_queryset().get(pk=invoice.pk)).data,
+            status=status.HTTP_200_OK if replayed else status.HTTP_201_CREATED,
+        )
+        if replayed:
+            response['Idempotent-Replayed'] = 'true'
+        return response
+
     def get_queryset(self):
         qs = super().get_queryset()
         # Employees can only see their own invoices
         if self.request.user.role == 'employee':
             qs = qs.filter(cashier=self.request.user)
-        
-        customer_id = self.request.query_params.get('customer')
-        if customer_id:
-            qs = qs.filter(customer_id=customer_id)
+
+        params = self.request.query_params
+        if params.get('customer'):
+            qs = qs.filter(customer_id=params['customer'])
+        if params.get('payment_method'):
+            qs = qs.filter(payment_method=params['payment_method'])
+        if params.get('date_from'):
+            qs = qs.filter(created_at__date__gte=params['date_from'])
+        if params.get('date_to'):
+            qs = qs.filter(created_at__date__lte=params['date_to'])
+        if params.get('search'):
+            term = params['search'].strip().lstrip('#')
+            condition = Q(customer__name__icontains=term) | Q(customer__phone__icontains=term) | Q(
+                payments__reference_id__icontains=term)
+            if term.isdigit():
+                condition |= Q(pk=int(term))
+            qs = qs.filter(condition).distinct()
         return qs
+
+    @action(detail=True, methods=['post'], url_path='returns')
+    def create_return(self, request, pk=None):
+        """مرتجع جزئي أو كامل — للمدير والمشرف (المرتجع يُخرج مالاً من الصندوق)."""
+        if request.user.role not in PRIVILEGED_ROLES:
+            return Response({'detail': 'المرتجع يتطلب صلاحية مدير أو مشرف.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        invoice = self.get_object()
+        serializer = SaleReturnInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            sale_return = services.create_sale_return(
+                invoice=invoice,
+                items=data['items'],
+                refund_method=data['refund_method'],
+                reason=data.get('reason', ''),
+                bank_account=data.get('bank_account'),
+                bank_name=data.get('bank_name', ''),
+                reference_id=data.get('reference_id'),
+                user=request.user,
+            )
+        except services.InventoryError as exc:
+            raise business_error(exc)
+        return Response(SaleReturnSerializer(sale_return).data, status=status.HTTP_201_CREATED)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PUBLIC APIS (AllowAny)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+class PublicCatalogPagination(PageNumberPagination):
+    """صفحات المتجر العام: عدد إجمالي ورابط التالي بدل قصّ الكتالوج عند 500."""
+
+    page_size = 24
+    page_size_query_param = 'page_size'
+    max_page_size = 60
+
+
+PUBLIC_PARTS_QUERYSET = SparePart.objects.select_related('category').prefetch_related('compatible_cars')
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def public_featured_parts(request):
     """Fetch featured spare parts with fully resolved Category and CarModels."""
-    parts = SparePart.objects.filter(is_featured=True).select_related('category').prefetch_related('compatible_cars')
-    serializer = PublicSparePartSerializer(parts, many=True)
+    parts = PUBLIC_PARTS_QUERYSET.filter(is_featured=True)[:60]
+    serializer = PublicSparePartSerializer(parts, many=True, context={'request': request})
     return Response(serializer.data)
 
 
@@ -311,41 +689,47 @@ def public_featured_parts(request):
 def public_part_detail(request, pk):
     """Fetch details of a single spare part with fully resolved Category and CarModels."""
     try:
-        part = SparePart.objects.select_related('category').prefetch_related('compatible_cars').get(pk=pk)
-        serializer = PublicSparePartSerializer(part, context={'request': request})
-        return Response(serializer.data)
+        part = PUBLIC_PARTS_QUERYSET.get(pk=pk)
     except SparePart.DoesNotExist:
         return Response({'detail': 'قطعة الغيار غير موجودة.'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(PublicSparePartSerializer(part, context={'request': request}).data)
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def public_parts_list(request):
-    """Public list of spare parts with optional filtering by category_id and car_model_id."""
-    qs = SparePart.objects.select_related('category').prefetch_related('compatible_cars').all().order_by('-created_at')
-    
+    """
+    كتالوج المتجر العام مقسّماً إلى صفحات، مع تصفية بالفئة والسيارة والبحث.
+
+    يعيد {count, next, previous, results}؛ التصفح يصل إلى كامل الكتالوج.
+    """
+    qs = PUBLIC_PARTS_QUERYSET.order_by('-created_at', '-pk')
+
     category_id = request.query_params.get('category_id')
     if category_id:
         qs = qs.filter(category_id=category_id)
-        
+
     car_model_id = request.query_params.get('car_model_id')
     if car_model_id:
-        qs = qs.filter(compatible_cars__id=car_model_id)
-        
+        qs = qs.filter(compatible_cars__id=car_model_id).distinct()
+
     search = request.query_params.get('search')
     if search:
-        qs = qs.filter(
-            Q(name__icontains=search) | 
-            Q(part_number__icontains=search) | 
-            Q(description__icontains=search)
-        )
-        
-    serializer = PublicSparePartSerializer(qs, many=True, context={'request': request})
-    return Response(serializer.data)
+        qs = search_parts(qs, search)
+
+    if request.query_params.get('in_stock') in ('1', 'true'):
+        qs = qs.filter(stock_quantity__gt=0)
+
+    paginator = PublicCatalogPagination()
+    page = paginator.paginate_queryset(qs, request)
+    data = PublicSparePartSerializer(page, many=True, context={'request': request}).data
+    return paginator.get_paginated_response(data)
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([PublicWriteThrottle])
 def public_contact_submit(request):
     """Receive public landing page contact form message submissions."""
     serializer = ContactMessageSerializer(data=request.data)
@@ -359,47 +743,55 @@ def public_contact_submit(request):
 @permission_classes([AllowAny])
 def public_settings(request):
     """Dynamic branding configurations, active contact platforms, categories, and vehicle models."""
-    settings_obj, _ = SiteSetting.objects.get_or_create(pk=1)
-    settings_serializer = SiteSettingSerializer(settings_obj)
-
-    contact_methods = ContactMethod.objects.filter(is_active=True)
-    contact_serializer = ContactMethodSerializer(contact_methods, many=True)
-
-    categories = Category.objects.all().order_by('name')
-    categories_serializer = CategorySerializer(categories, many=True, context={'request': request})
-
-    car_models = CarModel.objects.all().order_by('brand', 'model_name')
-    car_models_serializer = CarModelSerializer(car_models, many=True, context={'request': request})
+    settings_obj = SiteSetting.load()
 
     return Response({
-        'settings': settings_serializer.data,
-        'contact_methods': contact_serializer.data,
-        'categories': categories_serializer.data,
-        'car_models': car_models_serializer.data,
+        'settings': SiteSettingSerializer(settings_obj, context={'request': request}).data,
+        'contact_methods': ContactMethodSerializer(
+            ContactMethod.objects.filter(is_active=True), many=True, context={'request': request}
+        ).data,
+        'categories': CategorySerializer(
+            Category.objects.annotate(annotated_parts_count=Count('spare_parts')).order_by('name'),
+            many=True,
+            context={'request': request},
+        ).data,
+        'car_models': CarModelSerializer(
+            CarModel.objects.all().order_by('brand', 'model_name'),
+            many=True,
+            context={'request': request},
+        ).data,
     })
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ADMIN / MANAGER SETTINGS & CRUD VIEWS
+# ADMIN / MANAGER SETTINGS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated, RoleBasedPermission])
 def admin_settings_view(request):
-    """Manage dynamic site configuration (Manager or Supervisor only for updates)."""
-    if request.method == 'PUT' and request.user.role not in ['manager', 'supervisor']:
+    """إعدادات المؤسسة: الهوية والإيصال والتسعير والخصومات (التعديل للمدير والمشرف)."""
+    if request.method == 'PUT' and request.user.role not in PRIVILEGED_ROLES:
         return Response({'detail': 'غير مصرح للقيام بهذا الإجراء.'}, status=status.HTTP_403_FORBIDDEN)
 
-    settings_obj, _ = SiteSetting.objects.get_or_create(pk=1)
+    settings_obj = SiteSetting.load()
     if request.method == 'GET':
-        serializer = SiteSettingSerializer(settings_obj)
+        return Response(BusinessSettingsSerializer(settings_obj, context={'request': request}).data)
+
+    serializer = BusinessSettingsSerializer(
+        settings_obj, data=request.data, partial=True, context={'request': request}
+    )
+    if serializer.is_valid():
+        serializer.save()
         return Response(serializer.data)
-    elif request.method == 'PUT':
-        serializer = SiteSettingSerializer(settings_obj, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def receipt_settings_view(request):
+    """هوية البائع ومقاس الورق لطباعة الإيصال (لكل الموظفين)."""
+    return Response(ReceiptSettingsSerializer(SiteSetting.load(), context={'request': request}).data)
 
 
 class ContactMethodViewSet(viewsets.ModelViewSet):
@@ -410,26 +802,72 @@ class ContactMethodViewSet(viewsets.ModelViewSet):
 
 
 class ContactMessageViewSet(viewsets.ReadOnlyModelViewSet):
-    """ReadOnly view of contact submission logs for dashboard review."""
+    """سجل رسائل التواصل — للمدير والمشرف فقط (يحتوي بيانات عملاء)."""
     queryset = ContactMessage.objects.all().order_by('-created_at')
     serializer_class = ContactMessageSerializer
-    permission_classes = [IsAuthenticated, RoleBasedPermission]
+    permission_classes = [IsAuthenticated, IsManagerOrSupervisor]
 
 
-class CustomerViewSet(viewsets.ModelViewSet):
-    """CRUD for customers."""
-    queryset = Customer.objects.all()
+# ═══════════════════════════════════════════════════════════════════════════════
+# CUSTOMERS / SUPPLIERS / SUPPLY DEALS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class CustomerViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
+    """
+    العملاء مع أرصدتهم. الموظف يضيف العميل من نقطة البيع ويحصّل منه، ولا
+    يعدّل خصمه أو حد ائتمانه ولا يحذفه (سياسة الأدوار).
+    """
     serializer_class = CustomerSerializer
-    permission_classes = [IsAuthenticated]
-    search_fields = ['name', 'phone', 'location']
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
+    search_fields = ['name', 'phone', 'location', 'whatsapp_number']
+    filterset_fields = ['customer_type']
+    protected_delete_message = (
+        'لا يمكن حذف هذا العميل لأن له فواتير أو دفعات مسجّلة في حسابه.'
+    )
+
+    def get_queryset(self):
+        qs = services.annotate_customer_balances(Customer.objects.all())
+        if self.request.query_params.get('has_balance') in ('1', 'true'):
+            qs = qs.filter(annotated_balance__gt=0).order_by('-annotated_balance')
+        return qs
+
+    @action(detail=True, methods=['get'], url_path='statement')
+    def statement(self, request, pk=None):
+        """كشف حساب العميل بالرصيد الجاري."""
+        customer = self.get_object()
+        entries = services.customer_statement(customer)
+        return Response({
+            'customer': CustomerSerializer(customer, context=self.get_serializer_context()).data,
+            'entries': [
+                {**entry, 'debit': str(entry['debit']), 'credit': str(entry['credit']),
+                 'balance': str(entry['balance'])}
+                for entry in entries
+            ],
+        })
+
+    @action(detail=True, methods=['post'], url_path='payments')
+    def collect(self, request, pk=None):
+        """تحصيل دفعة من دين العميل (نقداً أو تحويلاً)."""
+        customer = self.get_object()
+        serializer = CollectionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            payment = services.record_collection(customer=customer, user=request.user, **serializer.validated_data)
+        except services.InventoryError as exc:
+            raise business_error(exc)
+        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 
-class SupplierViewSet(viewsets.ModelViewSet):
+class SupplierViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     """CRUD for suppliers."""
-    queryset = Supplier.objects.all()
+    queryset = Supplier.objects.all().prefetch_related('supplied_parts', 'deals')
     serializer_class = SupplierSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
     search_fields = ['company_name', 'contact_person', 'phone_number', 'address']
+    protected_delete_message = (
+        'لا يمكن حذف هذا المورد لأن له عمليات توريد مسجّلة تفسّر مصدر المخزون '
+        'وتكلفته. عطّل المورد بدل حذفه.'
+    )
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -438,94 +876,245 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
 
 class SupplyDealViewSet(viewsets.ModelViewSet):
-    """CRUD for supply deals/restock entries."""
-    queryset = SupplyDeal.objects.all()
+    """CRUD for supply deals/restock entries — stock changes go through services."""
+    queryset = SupplyDeal.objects.select_related('supplier', 'spare_part')
     serializer_class = SupplyDealSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
     search_fields = ['invoice_reference', 'spare_part__name', 'supplier__company_name']
+    filterset_fields = ['supplier', 'spare_part']
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
+
+    def destroy(self, request, *args, **kwargs):
+        deal = self.get_object()
+        try:
+            services.delete_supply_deal(deal, user=request.user)
+        except services.InventoryError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STOCK MOVEMENTS (سجل حركات المخزون)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
+    """سجل حركات المخزون للقراءة فقط."""
+    queryset = StockMovement.objects.select_related('spare_part', 'created_by')
+    serializer_class = StockMovementSerializer
+    permission_classes = [IsAuthenticated, RoleBasedPermission]
+    filterset_fields = ['spare_part', 'reason']
+    ordering_fields = ['created_at', 'change']
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REPORTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+REPORT_PERIODS = {
+    'daily': (timedelta(days=30), TruncDay),
+    'weekly': (timedelta(weeks=12), TruncWeek),
+    'monthly': (timedelta(days=365), TruncMonth),
+    'yearly': (timedelta(days=365 * 5), TruncYear),
+}
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsManagerOrSupervisor])
 def reports_sales(request):
-    """API view to aggregate sales data by time period."""
-    from django.db.models.functions import TruncDay, TruncWeek, TruncMonth, TruncYear
-    
+    """
+    تقارير المبيعات والأرباح مجمّعة حسب الفترة الزمنية.
+
+    الإيراد والربح صافيان من المرتجعات؛ النقدي والبنكي من الدفعات الفعلية
+    (لا من طريقة دفع الفاتورة، فالفاتورة قد تُدفع بعدة طرق أو آجلاً).
+    """
     period = request.query_params.get('period', 'daily').lower()
-    now = timezone.now()
-    
-    if period == 'daily':
-        start_date = now - timezone.timedelta(days=30)
-        trunc_func = TruncDay('created_at')
-    elif period == 'weekly':
-        start_date = now - timezone.timedelta(weeks=12)
-        trunc_func = TruncWeek('created_at')
-    elif period == 'monthly':
-        start_date = now - timezone.timedelta(days=365)
-        trunc_func = TruncMonth('created_at')
-    elif period == 'yearly':
-        start_date = now - timezone.timedelta(days=365 * 5)
-        trunc_func = TruncYear('created_at')
-    else:
-        return Response({'error': 'الفترة المحددة غير صالحة. اختر: daily, weekly, monthly, yearly'}, status=status.HTTP_400_BAD_REQUEST)
+    if period not in REPORT_PERIODS:
+        return Response(
+            {'error': 'الفترة المحددة غير صالحة. اختر: daily, weekly, monthly, yearly'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    span, trunc = REPORT_PERIODS[period]
+    start_date = timezone.now() - span
+    scoped = reports.scoped(start_date)
+    figures = reports.period_figures(start_date)
+    expenses = reports.expenses_total(timezone.localtime(start_date).date())
 
-    # Core stats
-    invoices = Invoice.objects.filter(created_at__gte=start_date)
-    
-    overall = invoices.aggregate(
-        total_revenue=Sum('total_amount'),
-        total_orders=Count('id'),
-        cash_sales=Sum('total_amount', filter=Q(payment_method='cash')),
-        bank_sales=Sum('total_amount', filter=Q(payment_method='bank')),
-        cash_count=Count('id', filter=Q(payment_method='cash')),
-        bank_count=Count('id', filter=Q(payment_method='bank'))
-    )
+    sale_payments = scoped['sale_payments']
+    cash_payments = sale_payments.filter(method=Payment.Method.CASH)
+    bank_payments = sale_payments.filter(method=Payment.Method.BANK)
+    other_currency_orders = Invoice.objects.filter(created_at__gte=start_date).exclude(
+        currency=settings.BASE_CURRENCY,
+    ).count()
 
-    # Periodic breakdown
-    breakdown = invoices.annotate(
-        period_label=trunc_func
-    ).values('period_label').annotate(
-        revenue=Sum('total_amount'),
-        orders=Count('id'),
-        cash_revenue=Sum('total_amount', filter=Q(payment_method='cash')),
-        bank_revenue=Sum('total_amount', filter=Q(payment_method='bank')),
-    ).order_by('-period_label')
+    breakdown = {}
 
+    def bucket(label):
+        return breakdown.setdefault(label, {
+            'revenue': reports.ZERO, 'orders': 0, 'returns': reports.ZERO,
+            'cash_revenue': reports.ZERO, 'bank_revenue': reports.ZERO,
+        })
+
+    for row in scoped['invoices'].annotate(p=trunc('created_at')).values('p').annotate(
+        revenue=Sum('total_amount'), orders=Count('id'),
+    ):
+        entry = bucket(row['p'])
+        entry['revenue'] += row['revenue'] or 0
+        entry['orders'] += row['orders']
+    for row in scoped['returns'].annotate(p=trunc('created_at')).values('p').annotate(v=Sum('total_amount')):
+        bucket(row['p'])['returns'] += row['v'] or 0
+    for row in sale_payments.annotate(p=trunc('created_at')).values('p', 'method').annotate(v=Sum('amount')):
+        key = 'cash_revenue' if row['method'] == Payment.Method.CASH else 'bank_revenue'
+        bucket(row['p'])[key] += row['v'] or 0
+
+    revenue = figures['revenue']
     return Response({
+        'period': period,
+        'currency': settings.BASE_CURRENCY,
         'overall': {
-            'total_revenue': float(overall['total_revenue'] or 0),
-            'total_orders': overall['total_orders'] or 0,
-            'cash_sales': float(overall['cash_sales'] or 0),
-            'bank_sales': float(overall['bank_sales'] or 0),
-            'cash_count': overall['cash_count'] or 0,
-            'bank_count': overall['bank_count'] or 0,
+            'currency': settings.BASE_CURRENCY,
+            'other_currency_orders': other_currency_orders,
+            'gross_revenue': float(figures['gross_revenue']),
+            'returns_total': float(figures['returns_total']),
+            'returns_count': figures['returns_count'],
+            'total_revenue': float(revenue),
+            'total_orders': figures['orders'],
+            'cash_sales': float(cash_payments.aggregate(v=Sum('amount'))['v'] or 0),
+            'bank_sales': float(bank_payments.aggregate(v=Sum('amount'))['v'] or 0),
+            'credit_sales': float(figures['credit_sales']),
+            'cash_count': cash_payments.values('invoice').distinct().count(),
+            'bank_count': bank_payments.values('invoice').distinct().count(),
+            'total_profit': float(figures['profit']),
+            'expenses_total': float(expenses),
+            'net_profit': float(figures['profit'] - expenses),
+            'gross_margin_percent': round(
+                float(figures['profit']) / float(revenue) * 100, 2
+            ) if revenue else 0.0,
         },
         'breakdown': [
             {
-                'period': item['period_label'].strftime('%Y-%m-%d') if item['period_label'] else None,
-                'revenue': float(item['revenue'] or 0),
-                'orders': item['orders'] or 0,
-                'cash_revenue': float(item['cash_revenue'] or 0),
-                'bank_revenue': float(item['bank_revenue'] or 0),
-            } for item in breakdown
-        ]
+                'period': timezone.localtime(label).strftime('%Y-%m-%d') if label else None,
+                'revenue': float(entry['revenue'] - entry['returns']),
+                'returns': float(entry['returns']),
+                'orders': entry['orders'],
+                'cash_revenue': float(entry['cash_revenue']),
+                'bank_revenue': float(entry['bank_revenue']),
+            }
+            for label, entry in sorted(
+                breakdown.items(), key=lambda item: item[0] or timezone.now(), reverse=True,
+            )
+        ],
+        'top_products': [
+            {
+                'id': entry['id'],
+                'name': entry['name'],
+                'quantity_sold': entry['quantity_sold'],
+                'revenue': float(entry['revenue']),
+                'profit': float(entry['profit']),
+            }
+            for entry in reports.top_products(start_date)
+        ],
     })
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PUBLIC ORDERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
 class PublicOrderViewSet(viewsets.ModelViewSet):
-    queryset = PublicOrder.objects.all().prefetch_related('items__spare_part')
+    """طلبات المتجر الإلكتروني: إنشاء عام + إدارة داخلية مع تحديث المخزون."""
+    queryset = PublicOrder.objects.prefetch_related('items__spare_part')
     serializer_class = PublicOrderSerializer
+    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+    filterset_fields = ['status']
+    ordering_fields = ['created_at', 'total_amount']
 
     def get_permissions(self):
         if self.action == 'create':
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), RoleBasedPermission()]
+
+    def get_throttles(self):
+        if self.action == 'create':
+            return [PublicWriteThrottle()]
+        return super().get_throttles()
+
+    def create(self, request, *args, **kwargs):
+        """
+        إنشاء طلب عام — مع تحذير مبكر عن البنود التي قد لا تتوفر عند التأكيد.
+
+        الطلب يُنشأ دائماً بحالة pending وبلا خصم مخزون (التحقق النهائي يحدث
+        في services.confirm_public_order) — وهذا قرار تصميمي مقصود ومحفوظ.
+        لكن ترك العميل يرى «تم استلام طلبك بنجاح» ثم يتّصل المشرف ليقول
+        «الكمية غير متوفرة» تجربة سيئة. لذلك نُرفق قائمة تحذيرية بالبنود غير
+        الكافية، بلا منع الطلب (المنع الكامل يرفض طلب قطعة قليلة المخزون مع
+        قطعة متوفرة، وهو أسوأ تجارياً).
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+
+        stock_warnings = [
+            {
+                'part': item.spare_part.name,
+                'requested': item.quantity,
+                'available': item.spare_part.stock_quantity,
+            }
+            for item in order.items.select_related('spare_part')
+            if item.spare_part.stock_quantity < item.quantity
+        ]
+
+        data = self.get_serializer(order).data
+        if stock_warnings:
+            data['stock_warnings'] = stock_warnings
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        """تغيير حالة الطلب مع ضبط المخزون عبر خدمات ذرّية."""
+        order = self.get_object()
+        new_status = request.data.get('status')
+
+        if new_status and new_status != order.status:
+            try:
+                if new_status == PublicOrder.Status.CONFIRMED:
+                    order = services.confirm_public_order(order, user=request.user)
+                elif new_status == PublicOrder.Status.CANCELLED:
+                    order = services.cancel_public_order(order, user=request.user)
+                elif new_status == PublicOrder.Status.PENDING:
+                    # إرجاع طلب مؤكد إلى قيد الانتظار لا يُرجع المخزون (بخلاف
+                    # الإلغاء) فيصبح تأكيده لاحقاً خصماً مزدوجاً لنفس البنود.
+                    # نمنعه صراحةً ونوجّه المستخدم إلى الإلغاء الذي يُرجع الكميات.
+                    if order.status == PublicOrder.Status.CONFIRMED:
+                        return Response(
+                            {'detail': 'لا يمكن إرجاع طلب مؤكد إلى قيد الانتظار '
+                                       'لأن مخزونه خُصم بالفعل. ألغِ الطلب '
+                                       '(فيُرجع المخزون) ثم أنشئ طلباً جديداً.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    order.status = PublicOrder.Status.PENDING
+                    order.save(update_fields=['status'])
+                else:
+                    return Response(
+                        {'detail': 'حالة غير صالحة.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except services.InventoryError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(self.get_serializer(order).data)
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
 
-class NotificationViewSet(viewsets.ModelViewSet):
+# ═══════════════════════════════════════════════════════════════════════════════
+# NOTIFICATIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    """الإشعارات للقراءة فقط + إجراءات تعليم كمقروء (لا حذف/تعديل مباشر)."""
     queryset = Notification.objects.all()
     serializer_class = NotificationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsManagerOrSupervisor]
 
     @action(detail=False, methods=['get'], url_path='unread-count')
     def unread_count(self, request):

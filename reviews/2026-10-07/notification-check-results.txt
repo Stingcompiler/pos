@@ -1,0 +1,23 @@
+Creating test database for alias 'default'...
+/Users/macbookairm1/Desktop/pos/backend/.venv/lib/python3.13/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/pos-review-20261007-static/
+  mw_instance = middleware(adapted_handler)
+F
+======================================================================
+FAIL: test_order_email_includes_created_items (notification_checks.NotificationChecks.test_order_email_includes_created_items)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/backend/.venv/lib/python3.13/site-packages/django/test/utils.py", line 456, in inner
+    return func(*args, **kwargs)
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/notification_checks.py", line 15, in test_order_email_includes_created_items
+    self.assertIn('EMAIL-PART-SENTINEL', mail.outbox[0].body)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'EMAIL-PART-SENTINEL' not found in 'مرحباً أدمن،\n\nتم استلام طلب شراء جديد من الموقع الإلكتروني بانتظار التأكيد.\n\nتفاصيل العميل:\n- اسم الزبون: Audit customer\n- رقم الهاتف: 000\n- البريد الإلكتروني: غير متوفر\n- العنوان / المنطقة: غير متوفر\n\nالمنتجات المطلوبة:\n\n\nإجمالي القيمة: 40.00 ج.س\n\nيمكنك مراجعة وتأكيد الطلب مباشرة عبر لوحة التحكم:\nhttp://localhost:5180/dashboard/orders'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.051s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+Found 1 test(s).
+System check identified no issues (0 silenced).
+EVIDENCE order notification: mail_count=1, contains_item=False

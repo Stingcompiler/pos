@@ -21,3 +21,13 @@ node_modules
 *.njsproj
 *.sln
 *.sw?
+
+# مخرجات البناء — تُعاد توليدها بـ npm run build ولا يجوز تعقّبها.
+dist
+dev-dist
+
+# ملفات البيئة المحلية. لا تحتوي أسراراً (مجرد VITE_API_URL) لكنها خاصة
+# بكل جهاز؛ القيم الموثّقة في .env.example.
+.env
+.env.local
+.env.*.local

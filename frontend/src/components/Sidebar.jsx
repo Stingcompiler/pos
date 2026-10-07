@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -15,6 +15,9 @@ import {
   Settings,
   Mail,
   Truck,
+  Wallet,
+  Landmark,
+  ClipboardList,
 } from 'lucide-react';
 
 const menuItems = [
@@ -59,6 +62,24 @@ const menuItems = [
     icon: Users,
     path: '/customers',
     roles: ['manager', 'supervisor', 'employee'],
+  },
+  {
+    label: 'إقفال اليومية',
+    icon: Wallet,
+    path: '/dashboard/daily-close',
+    roles: ['manager', 'supervisor'],
+  },
+  {
+    label: 'مطابقة التحويلات',
+    icon: Landmark,
+    path: '/dashboard/transfers',
+    roles: ['manager', 'supervisor'],
+  },
+  {
+    label: 'الجرد',
+    icon: ClipboardList,
+    path: '/stock-counts',
+    roles: ['manager', 'supervisor'],
   },
   {
     label: 'المستخدمون',

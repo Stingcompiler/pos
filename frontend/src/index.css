@@ -1,55 +1,115 @@
-/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
+/* ─────────────────────────────────────────────────────────────────────────────
+   فيزانو — نظام التصميم (Design Tokens + Global Styles)
+   ─────────────────────────────────────────────────────────────────────────────
+   المرجع: «فيزانو — وصف الهوية البصرية» (§4 الألوان، §5 الخطوط، §6 الشكل).
+
+   ملاحظة مهمة: تلك الوثيقة كانت تنصّ على أن قيمها هي «القيم الفعلية في الكود»،
+   لكن الكود كان يخالفها فعلياً:
+     • اللون الأساسي كان oklch(… 250) أي أزرق-بنفسجي، لا التركواز #0E7C86.
+     • الخط كان Cairo لا Tajawal.
+     • لوحة dal-* (سماء/أحمر) كانت مستخدمة في المتجر العام وحده بلونين خارج الهوية.
+     • تدرجات gradient-* كانت مستخدمة 27 مرة والهوية تنصّ على تجنّبها.
+
+   أُعيد بناء اللوحة على قيم الهوية. الأثر يشمل كل الشاشات لأنها تستخدم رموزاً
+   دلالية (bg-primary-600، text-surface-300 …) لا قيماً مباشرة.
+   ───────────────────────────────────────────────────────────────────────────── */
 
 @import "tailwindcss";
 
-/* ─── Tailwind v4 Theme ────────────────────────────────────────────────────── */
 @theme {
-  --color-primary-50: oklch(0.97 0.02 250);
-  --color-primary-100: oklch(0.93 0.04 250);
-  --color-primary-200: oklch(0.87 0.08 250);
-  --color-primary-300: oklch(0.78 0.12 250);
-  --color-primary-400: oklch(0.68 0.16 250);
-  --color-primary-500: oklch(0.55 0.2 250);
-  --color-primary-600: oklch(0.48 0.2 250);
-  --color-primary-700: oklch(0.40 0.18 250);
-  --color-primary-800: oklch(0.33 0.14 250);
-  --color-primary-900: oklch(0.27 0.10 250);
-  --color-primary-950: oklch(0.20 0.08 250);
+  /* ─── Accent / primary — التركواز المخضّر (بدل الأزرق-البنفسجي) ───────────
+     مرساة السُّلَّم على قيم الهوية: 600 = #0E7C86 (الزر الأساسي)،
+     700 = #0B5A61 (الضغط)، 400 = #37B0B8 (نص على خلفية داكنة). */
+  --color-primary-50: #E6F5F6;
+  --color-primary-100: #C2E8EA;
+  --color-primary-200: #8FD3D8;
+  --color-primary-300: #5FC0C6;
+  --color-primary-400: #37B0B8;
+  --color-primary-500: #159AA4;
+  --color-primary-600: #0E7C86;
+  --color-primary-700: #0B5A61;
+  --color-primary-800: #084248;
+  --color-primary-900: #062F34;
+  --color-primary-950: #041E22;
 
-  --color-surface-50: oklch(0.98 0.005 260);
-  --color-surface-100: oklch(0.95 0.008 260);
-  --color-surface-200: oklch(0.91 0.01 260);
-  --color-surface-300: oklch(0.85 0.012 260);
-  --color-surface-400: oklch(0.75 0.015 260);
-  --color-surface-500: oklch(0.60 0.02 260);
-  --color-surface-600: oklch(0.45 0.02 260);
-  --color-surface-700: oklch(0.30 0.02 260);
-  --color-surface-800: oklch(0.22 0.015 260);
-  --color-surface-900: oklch(0.16 0.012 260);
-  --color-surface-950: oklch(0.12 0.01 260);
+  /* ─── Surfaces — الورق والحبر (Paper / Ink / Surface) ────────────────────
+     950 = #0C141F ورق داكن (خلفية الصفحة)، 800 = #131E2D سطح البطاقة،
+     100 = #E8EDF3 حبر النص على الداكن، 50 = #F6F8FB ورق فاتح. */
+  --color-surface-50: #F6F8FB;
+  --color-surface-100: #E8EDF3;
+  --color-surface-200: #CFD9E4;
+  --color-surface-300: #B0BECC;
+  --color-surface-400: #8B9BB0;
+  --color-surface-450: #738BA1;
+  --color-surface-500: #5B6B7F;
+  --color-surface-550: #4E5D70;
+  --color-surface-600: #435266;
+  --color-surface-650: #35455A;
+  --color-surface-700: #2A3A4C;
+  --color-surface-800: #131E2D;
+  --color-surface-900: #0F1927;
+  --color-surface-950: #0C141F;
 
-  --color-accent-400: oklch(0.75 0.18 160);
-  --color-accent-500: oklch(0.65 0.2 160);
-  --color-accent-600: oklch(0.55 0.18 160);
+  /* الحدود والفواصل (Line). */
+  --color-line: #E0E7EE;
 
-  --color-danger-400: oklch(0.70 0.2 25);
-  --color-danger-500: oklch(0.60 0.22 25);
-  --color-danger-600: oklch(0.50 0.2 25);
+  /* ─── درجات رمادية/سليت وسطية كانت الشاشات تعتمد عليها ───────────────── */
+  --color-gray-150: #E9EDF2;
+  --color-gray-250: #DDE4EB;
+  --color-gray-350: #BFC9D6;
+  --color-gray-450: #8B9AAE;
+  --color-gray-550: #66768A;
+  --color-slate-350: #B6C2D1;
 
-  --color-warning-400: oklch(0.82 0.16 85);
-  --color-warning-500: oklch(0.75 0.18 85);
+  /* ─── Accent — الدور المميّز في الهوية هو التركواز نفسه ─────────────────
+     كانت هذه السُّلَّم أخضر (hue 160) وهو لون خامس خارج الهوية. */
+  --color-accent-300: #5FC0C6;
+  --color-accent-400: #37B0B8;
+  --color-accent-500: #159AA4;
+  --color-accent-600: #0E7C86;
 
-  --color-success-400: oklch(0.78 0.16 145);
-  --color-success-500: oklch(0.68 0.18 145);
+  /* ─── الألوان الدلالية (للحالات فقط، لا للزينة) ─────────────────────────
+     الدرجة 400 مخصّصة للنص على الخلفية الداكنة فيلزمها تباين ≥ 4.5:1. */
+  --color-ok-400: #34D27B;
+  --color-ok-500: #1F9D55;
+  --color-ok-600: #15803D;
+  --color-success-400: #34D27B;
+  --color-success-500: #1F9D55;
+  --color-success-600: #15803D;
 
-  --color-dal-dark: #1A2432;
-  --color-dal-silver: #A0AEC0;
-  --color-dal-sky: #0EA5E9;
-  --color-dal-red: #DC2626;
+  --color-warn-400: #E0A33A;
+  --color-warn-500: #C4831B;
+  --color-warn-600: #B45309;
+  --color-warning-400: #E0A33A;
+  --color-warning-500: #C4831B;
 
-  --font-sans: 'Cairo', system-ui, sans-serif;
-  --font-family-sans: 'Cairo', system-ui, sans-serif;
+  --color-danger-400: #F26B6B;
+  --color-danger-500: #DC4242;
+  --color-danger-600: #B91C1C;
+
+  --color-green-150: #DFF4E6;
+  --color-red-150: #FBE0E0;
+
+  /* ─── لوحة المتجر العام (dal-*) — كانت سماوي/أحمر خارج الهوية ───────────
+     remap إلى رموز الهوية: السماوي ← التركواز الداكن (يُقرأ على الأبيض)،
+     الأحمر ← لون الخطر، الداكن ← الحبر، الفضي ← النص الثانوي. */
+  --color-dal-dark: #12253B;
+  --color-dal-silver: #5B6B7F;
+  --color-dal-sky: #0E7C86;
+  --color-dal-red: #B91C1C;
+
+  /* ─── الخطوط (§5): عربي Tajawal، وأحادي المسافة للمراجع ───────────────── */
+  --font-sans: 'Tajawal', system-ui, sans-serif;
+  --font-family-sans: 'Tajawal', system-ui, sans-serif;
+  --font-display: 'Tajawal', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Menlo', monospace;
+
+  /* ─── الشكل (§6): بطاقات 18px، عناصر تحكّم 10px ──────────────────────── */
+  --radius-card: 18px;
+  --radius-control: 10px;
+
+  /* ظل واحد ناعم للبطاقات — بلا ظلال ملوّنة. */
+  --shadow-card: 0 1px 2px rgba(12, 20, 31, 0.06), 0 8px 24px rgba(12, 20, 31, 0.08);
 
   --animate-fade-in: fade-in 0.3s ease-out;
   --animate-slide-up: slide-up 0.4s ease-out;
@@ -93,17 +153,28 @@
 
 html {
   direction: rtl;
-  font-family: 'Cairo', system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Cairo', system-ui, sans-serif;
+  font-family: var(--font-sans);
+  /* الورق الداكن (#0C141F) والحبر (#E8EDF3) من الهوية. */
   background-color: var(--color-surface-950);
   color: var(--color-surface-100);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── الأرقام — §5: خط جدولي في المبالغ والجداول ────────────────────────────
+   بلا `tabular-nums` تتغيّر عروض الأرقام فيتزحزح عمود المبالغ في الجداول. */
+.nums,
+.font-mono,
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 /* ─── Scrollbar Styling ────────────────────────────────────────────────────── */
@@ -140,36 +211,48 @@ textarea:focus {
 }
 
 /* ─── Utility Classes ──────────────────────────────────────────────────────── */
+
+/*
+ * سطح البطاقة القياسي — §6: زوايا 18px وظل واحد ناعم بلا تدرّج ولا توهّج.
+ * كان هذا الصنف «زجاجياً» بتدرّج شفاف، والهوية تنصّ على تجنّب المؤثّرات
+ * اللامعة. إعادة تعريفه هنا تشمل كل البطاقات دفعةً واحدة.
+ */
+.glass-card,
 .glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-800);
+  border: 1px solid var(--color-surface-700);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: none;
 }
 
-.glass-card {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-}
-
+/*
+ * الأزرار الأساسية — كانت تدرّجاً (والهوية تمنع تدرّجات النيون صراحةً)،
+ * فصارت لوناً جامداً. هذا التعريف يُصلح 25 موضعاً في الشاشات دفعةً واحدة.
+ */
 .gradient-primary {
-  background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-500));
+  background: var(--color-primary-600);
+  background-image: none;
+}
+
+.gradient-primary:hover {
+  background: var(--color-primary-700);
 }
 
 .gradient-accent {
-  background: linear-gradient(135deg, var(--color-accent-600), var(--color-accent-400));
+  background: var(--color-primary-600);
+  background-image: none;
 }
 
+/*
+ * النص المتدرّج صار بلون الهوية الجامد. (المبالغ تُبرز بثقل الخط ولون
+ * primary-400 لا بتدرّج.)
+ */
 .text-gradient {
-  background: linear-gradient(135deg, var(--color-primary-400), var(--color-accent-400));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  background: none;
+  background-image: none;
+  -webkit-text-fill-color: currentColor;
+  color: var(--color-primary-400);
 }
 
 /* Hide scrollbars for snapping carousels */
@@ -223,5 +306,155 @@ textarea:focus {
   th, td {
     color: black !important;
     border-bottom: 1px solid #ddd !important;
+  }
+}
+
+/* ─── المستند المطبوع المعزول (components/PrintArea.jsx) ───────────────────── */
+#print-root {
+  display: none;
+}
+
+@media print {
+  body.is-printing > *:not(#print-root) {
+    display: none !important;
+  }
+
+  body.is-printing #print-root {
+    display: block;
+    color: #000;
+    background: #fff;
+    font-family: 'Tajawal', 'Cairo', Arial, sans-serif;
+  }
+
+  .receipt {
+    color: #000;
+  }
+
+  .receipt-thermal {
+    width: 100%;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .print-paper-58mm .receipt-thermal {
+    font-size: 9.5px;
+  }
+
+  .receipt-a4 {
+    font-size: 12px;
+  }
+
+  .receipt-header {
+    text-align: center;
+    padding-bottom: 2mm;
+    margin-bottom: 2mm;
+    border-bottom: 1px dashed #000;
+  }
+
+  .receipt-header h1 {
+    font-size: 1.35em;
+    font-weight: 700;
+    margin: 0 0 1mm;
+  }
+
+  .receipt-header p {
+    margin: 0;
+  }
+
+  .receipt-logo {
+    max-height: 14mm;
+    max-width: 40mm;
+    margin: 0 auto 1mm;
+    filter: grayscale(1);
+  }
+
+  .receipt-meta div,
+  .receipt-totals div {
+    display: flex;
+    justify-content: space-between;
+    gap: 2mm;
+  }
+
+  .receipt-items {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2mm 0;
+  }
+
+  .receipt-items th,
+  .receipt-items td {
+    color: #000 !important;
+    border-bottom: 1px dotted #000 !important;
+    padding: 1mm 0.5mm;
+    text-align: right;
+    vertical-align: top;
+  }
+
+  .receipt-items th:not(:first-child),
+  .receipt-items td:not(:first-child) {
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .receipt-sub {
+    font-size: 0.85em;
+  }
+
+  .receipt-total {
+    font-size: 1.2em;
+    border-top: 1px solid #000;
+    padding-top: 1mm;
+    margin-top: 1mm;
+  }
+
+  .receipt-footer {
+    text-align: center;
+    margin-top: 3mm;
+    border-top: 1px dashed #000;
+    padding-top: 2mm;
+  }
+
+  .receipt-barcode {
+    width: 60%;
+    height: 10mm;
+    margin: 0 auto 1mm;
+    display: block;
+  }
+
+  /* ملصقات الباركود: شبكة على ورق A4 (3 × 10 ملصق 63.5×25.4 مم تقريباً). */
+  .label-sheet {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2mm;
+  }
+
+  .label {
+    height: 25mm;
+    padding: 1.5mm 2mm;
+    border: 1px dashed #999;
+    overflow: hidden;
+    break-inside: avoid;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 8.5px;
+    color: #000;
+  }
+
+  .label-name {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .label svg {
+    width: 100%;
+    height: 11mm;
+  }
+
+  .label-meta {
+    display: flex;
+    justify-content: space-between;
   }
 }

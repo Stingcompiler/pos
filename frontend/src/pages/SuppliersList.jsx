@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import {
   Truck, Plus, Search, Phone, Mail, MapPin, User,
@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 
 export default function SuppliersList() {
-  const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);

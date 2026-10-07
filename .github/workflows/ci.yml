@@ -1,0 +1,112 @@
+# فحوص آلية على كل دفعة وطلب دمج:
+#   1) فحص إعدادات الإنتاج الأمنية (بلا .env → DEBUG=False).
+#   2) اختبارات الباك إند.
+#   3) اختبارات الباك إند على PostgreSQL (تشمل اختبارات التزامن الحقيقي).
+#   4) lint واختبارات وبناء الواجهة.
+#
+# ملاحظة مهمة: لا نُمرّر ملف .env في CI عمداً. غيابه يجعل DJANGO_DEBUG=False
+# فيتحقّق `check --deploy` من الإعدادات الإنتاجية فعلاً (HSTS، إعادة التوجيه
+# إلى HTTPS، الكوكيز الآمنة). مع DEBUG=True تمرّ هذه الفحوص فارغة بلا قيمة.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  backend:
+    name: الباك إند (Django)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: تهيئة Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: تثبيت الاعتماديات
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: فحص إعدادات الإنتاج الأمنية
+        env:
+          DJANGO_DEBUG: 'False'
+        run: python manage.py check --deploy
+
+      - name: تشغيل الاختبارات
+        run: python manage.py test api --verbosity=2
+
+  backend-postgresql:
+    name: الباك إند على PostgreSQL (التزامن)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pos_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DB_NAME: pos_ci
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: '5432'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: تهيئة Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: تثبيت الاعتماديات
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: الاختبارات واختبارات التزامن
+        run: python manage.py test api --verbosity=2
+
+  frontend:
+    name: الواجهة (React + Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: تهيئة Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: تثبيت الاعتماديات
+        run: npm ci
+
+      - name: فحص الجودة (lint)
+        run: npm run lint
+
+      - name: اختبارات الواجهة
+        run: npm test
+
+      - name: البناء
+        run: npm run build

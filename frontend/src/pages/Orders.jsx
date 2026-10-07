@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import {
-  ShoppingCart, Clock, CheckCircle, XCircle, Phone, MessageSquare,
-  ChevronDown, ChevronUp, Loader2, Calendar, User, DollarSign, ExternalLink
+  ShoppingCart, Clock, CheckCircle, XCircle, MessageSquare,
+  ChevronDown, ChevronUp, Loader2, DollarSign, Inbox
 } from 'lucide-react';
 
 export default function Orders() {
@@ -33,7 +33,7 @@ export default function Orders() {
     setUpdatingId(orderId);
     setErrorMessage('');
     try {
-      const res = await api.patch(`public-orders/${orderId}/`, { status: newStatus });
+      await api.patch(`public-orders/${orderId}/`, { status: newStatus });
       
       // Update local state
       setOrders((prev) =>
@@ -124,6 +124,14 @@ export default function Orders() {
         </div>
       </div>
 
+      {/* خطأ آخر تحديث للحالة — كان يُعرض في alert فقط دون أي أثر مرئي دائم */}
+      {errorMessage && (
+        <div className="flex items-start gap-2 p-4 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">
+          <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
@@ -180,8 +188,9 @@ export default function Orders() {
         </div>
 
         {orders.length === 0 ? (
-          <div className="text-center py-16 text-surface-500 text-sm">
-            لا توجد طلبات خارجية واردة حالياً 📥
+          <div className="flex flex-col items-center gap-3 text-center py-16 text-surface-500 text-sm">
+            <Inbox className="w-12 h-12 opacity-30" />
+            <span>لا توجد طلبات خارجية واردة حالياً</span>
           </div>
         ) : (
           <div className="overflow-x-auto">

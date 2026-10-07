@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { Car, Plus, Edit3, Trash2, X, Loader2, Save, Search, Image as ImageIcon } from 'lucide-react';
 
 export default function CarModels() {
@@ -22,17 +22,23 @@ export default function CarModels() {
   const emptyForm = { brand: '', model_name: '', year_start: '', year_end: '', description: '' };
   const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => { loadModels(); }, [searchQuery]);
-
-  const loadModels = async () => {
+  // useCallback ضروري هنا حتى يعتمد الجلب على نص البحث دون إعادة إنشاء الدالة
+  // في كل تصيير، وهو ما كان يُبقي تحذير exhaustive-deps قائماً.
+  const loadModels = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
       if (searchQuery) params.search = searchQuery;
       const res = await api.get('car-models/', { params });
       setModels(res.data.results || res.data);
-    } catch {} finally { setLoading(false); }
-  };
+    } catch {
+      // نتجاهل الخطأ: القائمة تبقى كما هي، ويظهر الخطأ عند الحفظ فقط.
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => { loadModels(); }, [loadModels]);
 
   const openCreate = () => {
     setEditing(null);

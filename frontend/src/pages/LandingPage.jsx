@@ -1,30 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import * as Icons from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useCart } from '../context/CartContext';
+import {
+  AlertCircle, AtSign, Camera, Car, CheckCircle, CheckSquare, FolderOpen, Globe, Info, Layers,
+  Loader2, Mail, MapPin, Menu, MessageCircle, MessageSquare, Package, Phone, Send, ShieldCheck,
+  ShoppingBag, ShoppingCart, ThumbsUp, Trash2, Wrench, X,
+} from 'lucide-react';
 
-const API_BASE_URL = 'https://missingcars.pythonanywhere.com/api/';
-
-const getImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const apiBase = 'https://missingcars.pythonanywhere.com/api/';
-  const backendBase = apiBase.replace(/\/api\/?$/, '');
-  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+// استيراد المكتبة كاملة (import *) كان يضيف كل أيقونات lucide (≈620 KB) لحزمة
+// المتجر العام. نستورد ما تستخدمه الصفحة فقط.
+const Icons = {
+  AlertCircle, Car, CheckCircle, CheckSquare, FolderOpen, Info, Layers, Loader2, Mail, Menu,
+  MessageSquare, Package, Phone, Send, ShieldCheck, ShoppingBag, ShoppingCart, Trash2, Wrench, X,
 };
+
+// أيقونات وسائل التواصل بحسب الاسم المخزّن من صفحة الإعدادات. أيقونات العلامات
+// (فيسبوك، تويتر، انستغرام) غير موجودة في lucide الحالية، فلها بدائل معبّرة.
+const CONTACT_ICONS = {
+  Phone, Mail, MessageCircle, MapPin, Globe,
+  Facebook: ThumbsUp,
+  Twitter: AtSign,
+  Instagram: Camera,
+};
+import { motion } from 'framer-motion';
+import api from '../api/axios';
+import { mediaUrl } from '../api/media';
+import { useCart } from '../context/useCart';
+import CheckoutModal from '../components/shop/CheckoutModal';
+
+// روابط الصور تُبنى مركزياً من مساعد الميديا الموحّد (بدون أي نطاق مكتوب).
+const getImageUrl = mediaUrl;
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { cart, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, cartTotal } = useCart();
+  const { cart, addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } = useCart();
 
   // ──── Cart & Checkout Drawer States ────
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutForm, setCheckoutForm] = useState({ customer_name: '', phone_number: '', email: '', location: '' });
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
 
 
@@ -54,7 +66,7 @@ export default function LandingPage() {
   const fetchData = async () => {
     try {
       // Fetch settings & contact methods & lists
-      const settingsRes = await axios.get(`${API_BASE_URL}public/settings/`);
+      const settingsRes = await api.get('public/settings/');
       if (settingsRes.data.settings) {
         setSettings(settingsRes.data.settings);
       }
@@ -69,7 +81,7 @@ export default function LandingPage() {
       }
 
       // Fetch featured products
-      const partsRes = await axios.get(`${API_BASE_URL}public/featured-parts/`);
+      const partsRes = await api.get('public/featured-parts/');
       setFeaturedParts(partsRes.data);
     } catch (err) {
       console.error('Error fetching public landing data:', err);
@@ -96,7 +108,7 @@ export default function LandingPage() {
     }
 
     try {
-      await axios.post(`${API_BASE_URL}public/contact/`, form);
+      await api.post('public/contact/', form);
       setFormMsg('تم إرسال رسالتك بنجاح! سنتواصل معك في أقرب وقت ممكن.');
       setForm({ name: '', email: '', phone: '', message: '' });
     } catch {
@@ -106,45 +118,9 @@ export default function LandingPage() {
     }
   };
 
-  const handleCheckoutSubmit = async (e) => {
-    e.preventDefault();
-    if (!checkoutForm.customer_name.trim() || !checkoutForm.phone_number.trim()) {
-      alert('الرجاء تعبئة الاسم ورقم الهاتف لإكمال الطلب.');
-      return;
-    }
-    setCheckoutLoading(true);
-    try {
-      const payload = {
-        customer_name: checkoutForm.customer_name,
-        phone_number: checkoutForm.phone_number,
-        email: checkoutForm.email || null,
-        location: checkoutForm.location || null,
-        items: cart.map(item => ({
-          spare_part: item.part.id,
-          quantity: item.quantity
-        }))
-      };
-
-      await axios.post(`${API_BASE_URL}public-orders/`, payload);
-      setCheckoutSuccess(true);
-      clearCart();
-      setCheckoutForm({ customer_name: '', phone_number: '', email: '', location: '' });
-      setTimeout(() => {
-        setCheckoutSuccess(false);
-        setCheckoutOpen(false);
-        setCartOpen(false);
-      }, 3000);
-    } catch (err) {
-      console.error('Checkout failed:', err);
-      alert('فشل إرسال الطلب، يرجى المحاولة مرة أخرى.');
-    } finally {
-      setCheckoutLoading(false);
-    }
-  };
-
   // ──── Icon Mapper ────
   const getIconComponent = (iconName) => {
-    const Icon = Icons[iconName] || Icons.Phone;
+    const Icon = CONTACT_ICONS[iconName] || Phone;
     return <Icon className="w-5 h-5 text-primary-400 group-hover:scale-110 transition-transform duration-200" />;
   };
 
@@ -749,105 +725,7 @@ export default function LandingPage() {
 
       {/* ──── Checkout Modal ──── */}
       {checkoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" dir="rtl">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-slate-800 relative animate-scale-in">
-            <button onClick={() => setCheckoutOpen(false)} className="absolute top-4 left-4 text-gray-400 hover:text-slate-800 cursor-pointer">
-              <Icons.X className="w-5 h-5" />
-            </button>
-            
-            <div className="text-center space-y-2 mb-6">
-              <div className="w-12 h-12 rounded-full bg-dal-sky/10 border border-dal-sky/20 text-dal-sky flex items-center justify-center mx-auto">
-                <Icons.ShoppingBag className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800">إتمام طلب الشراء</h3>
-              <p className="text-[11px] text-gray-500">الرجاء إدخال معلوماتك لتأكيد حجز قطع الغيار وتسهيل التواصل معك.</p>
-            </div>
-
-            {checkoutSuccess ? (
-              <div className="p-6 text-center space-y-3 bg-green-50 border border-green-150 rounded-2xl animate-fade-in text-green-700">
-                <Icons.CheckCircle className="w-12 h-12 mx-auto animate-bounce text-green-500" />
-                <h4 className="text-sm font-bold">تم إرسال طلبك بنجاح!</h4>
-                <p className="text-xs">شكراً لك، تم استلام طلبك وسيتم إشعار الإدارة فوراً والتواصل معك قريباً.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">الاسم الكامل *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.customer_name}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="اسمك الكامل"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">رقم الهاتف الجوال *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.phone_number}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="رقم الهاتف للتواصل أو الواتساب"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">البريد الإلكتروني (اختياري)</label>
-                  <input
-                    type="email"
-                    value={checkoutForm.email}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="name@example.com"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">العنوان / المنطقة *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.location}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, location: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="مثال: الرياض، الخرطوم، بحري..."
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-3 border-t border-gray-100 pt-3">
-                    <span>المجموع النهائي:</span>
-                    <span className="text-dal-red text-sm font-black font-mono">{formatCurrency(cartTotal)}</span>
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={checkoutLoading}
-                    className="w-full py-3 rounded-xl bg-dal-red hover:bg-red-700 hover:shadow-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer leading-normal disabled:opacity-50"
-                  >
-                    {checkoutLoading ? (
-                      <>
-                        <Icons.Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جاري معالجة الطلب...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Send className="w-4 h-4" />
-                        <span>إرسال وتأكيد الطلب الآن</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+        <CheckoutModal theme="brand" onClose={() => setCheckoutOpen(false)} onOrdered={() => setCartOpen(false)} />
       )}
     </div>
   );

@@ -1,20 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   ArrowRight, MessageSquare, Wrench, Shield, CheckCircle,
   AlertTriangle, Layers, MapPin, Hash, Loader2
 } from 'lucide-react';
+import api from '../api/axios';
+import { mediaUrl } from '../api/media';
 
-const API_BASE_URL = 'https://missingcars.pythonanywhere.com/api/';
-
-const getImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const apiBase = 'https://missingcars.pythonanywhere.com/api/';
-  const backendBase = apiBase.replace(/\/api\/?$/, '');
-  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
-};
+// روابط الصور تُبنى مركزياً من مساعد الميديا الموحّد (بدون أي نطاق مكتوب).
+const getImageUrl = mediaUrl;
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -27,20 +21,17 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchProductDetails();
-  }, [id]);
-
-  const fetchProductDetails = async () => {
+  // useCallback يربط الجلب بمعرّف القطعة فقط بدل إعادة إنشاء الدالة كل تصيير.
+  const fetchProductDetails = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       // 1. Fetch part detail
-      const partRes = await axios.get(`${API_BASE_URL}public/parts/${id}/`);
+      const partRes = await api.get(`public/parts/${id}/`);
       setPart(partRes.data);
 
       // 2. Fetch site settings for contact numbers
-      const settingsRes = await axios.get(`${API_BASE_URL}public/settings/`);
+      const settingsRes = await api.get('public/settings/');
       if (settingsRes.data.settings) {
         setSiteName(settingsRes.data.settings.site_name);
       }
@@ -53,7 +44,11 @@ export default function ProductDetails() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchProductDetails();
+  }, [fetchProductDetails]);
 
   const formatCurrency = (val) => {
     return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val) + ' ج.س';
@@ -87,10 +82,12 @@ export default function ProductDetails() {
   }
 
   // ──── Smart WhatsApp Number Extraction & Message Prefilling ────
-  const whatsappContact = contacts.find(c =>
-    c.platform_name.toLowerCase().includes('whatsapp') ||
-    c.icon_name.toLowerCase().includes('whatsapp')
-  );
+  const whatsappContact = contacts.find((contact) => {
+    const platform = (contact.platform_name || '').toLowerCase();
+    const icon = (contact.icon_name || '').toLowerCase();
+    const value = contact.value || '';
+    return platform.includes('whatsapp') || icon.includes('whatsapp') || value.includes('wa.me');
+  });
   // Extracted plain digits. Fallback to common country code if not defined
   const rawNumber = whatsappContact ? whatsappContact.value.replace(/[^0-9]/g, '') : '249912345678';
   const partUrl = window.location.href;

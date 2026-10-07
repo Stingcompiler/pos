@@ -3,6 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { Bell, ShoppingCart, Mail, Check, Inbox } from 'lucide-react';
 
+// ─── نداءات الـ API في نطاق الوحدة ───
+// تُعيد البيانات فقط بلا setState، حتى تبقى كتابة الحالة في مكوّن React وحده.
+async function requestUnreadCount() {
+  const res = await api.get('notifications/unread-count/');
+  return res.data.unread_count;
+}
+
+async function requestRecentNotifications() {
+  const res = await api.get('notifications/');
+  // الـ API قد يرجّع قائمة مباشرة أو قائمة مقسّمة على صفحات.
+  const list = res.data.results || res.data;
+  return list.slice(0, 10);
+}
+
 export default function NotificationBadge() {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -21,25 +35,18 @@ export default function NotificationBadge() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch functions
-  const fetchUnreadCount = async () => {
-    try {
-      const res = await api.get('notifications/unread-count/');
-      setUnreadCount(res.data.unread_count);
-    } catch (err) {
-      console.error('Error fetching unread count:', err);
-    }
+  // كتابة الحالة تتم داخل .then() لتكون مؤجّلة بوضوح بعد التأثير،
+  // وهو ما تطلبه قاعدة react-hooks/set-state-in-effect.
+  const fetchUnreadCount = () => {
+    requestUnreadCount()
+      .then(setUnreadCount)
+      .catch((err) => console.error('Error fetching unread count:', err));
   };
 
-  const fetchRecentNotifications = async () => {
-    try {
-      const res = await api.get('notifications/');
-      // django returns pagination or direct list
-      const list = res.data.results || res.data;
-      setNotifications(list.slice(0, 10)); // Show top 10 recent
-    } catch (err) {
-      console.error('Error fetching recent notifications:', err);
-    }
+  const fetchRecentNotifications = () => {
+    requestRecentNotifications()
+      .then(setNotifications)
+      .catch((err) => console.error('Error fetching recent notifications:', err));
   };
 
   // Poll count every 30 seconds

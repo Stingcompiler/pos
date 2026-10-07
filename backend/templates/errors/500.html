@@ -1,0 +1,98 @@
+{% comment %}
+صفحة خطأ الخادم عربية — مستقلة تماماً (CSS داخلي) لأنها تُعرض تحديداً حين
+تفشل الخدمة، فلا يجوز أن تعتمد على ملفات ثابتة أو قاعدة بيانات.
+{% endcomment %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>خطأ في الخادم</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: #0b0f1a;
+      color: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Arial, sans-serif;
+      line-height: 1.7;
+    }
+    .card {
+      max-width: 460px;
+      width: 100%;
+      text-align: center;
+      padding: 40px 28px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+    }
+    .icon-box {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 20px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.28);
+    }
+    .code {
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #f59e0b;
+      font-variant-numeric: tabular-nums;
+    }
+    h1 { font-size: 20px; margin: 10px 0 8px; color: #ffffff; }
+    p { font-size: 14px; color: #9ca3af; margin-bottom: 8px; }
+    .hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 26px;
+    }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+    }
+    a:hover { opacity: 0.85; }
+    .primary { background: #dc2626; color: #ffffff; }
+    .ghost {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-box">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fbbf24"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+    </div>
+    <div class="code">500</div>
+    <h1>حدث خطأ غير متوقع</h1>
+    <p>تعذّر إكمال طلبك بسبب خلل مؤقت في الخادم. لم تُفقد بياناتك المسجّلة سابقاً.</p>
+    <p class="hint">جرّب إعادة التحميل بعد لحظات. إن استمر الخطأ فأبلغ مسؤول النظام بالوقت التقريبي للحادثة.</p>
+    <div class="actions">
+      <a class="primary" href="/">العودة إلى المتجر</a>
+      <a class="ghost" href="/shop">تصفح قطع الغيار</a>
+    </div>
+  </div>
+</body>
+</html>

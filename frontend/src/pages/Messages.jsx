@@ -14,7 +14,7 @@ export default function Messages() {
     try {
       const res = await api.get('contact-messages/');
       setMessages(res.data.results || res.data);
-    } catch (err) {
+    } catch {
       setError('حدث خطأ أثناء تحميل الرسائل الواردة');
     } finally {
       setLoading(false);

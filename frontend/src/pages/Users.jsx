@@ -12,7 +12,9 @@ export default function Users() {
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => { load(); }, []);
-  const load = async () => { setLoading(true); try { const r = await api.get('users/'); setUsers(r.data.results||r.data); } catch{} finally { setLoading(false); } };
+  const load = async () => { setLoading(true); try { const r = await api.get('users/'); setUsers(r.data.results||r.data); } catch {
+      // نتجاهل الخطأ: تبقى القائمة كما هي، ويظهر الخطأ عند الحفظ فقط.
+    } finally { setLoading(false); } };
 
   const handleSave = async (e) => {
     e.preventDefault(); setSaving(true); setError('');

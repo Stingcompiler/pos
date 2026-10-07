@@ -3,8 +3,30 @@ Custom JWT authentication that reads tokens from HttpOnly cookies.
 """
 
 from django.conf import settings
+from rest_framework import exceptions
+from rest_framework.authentication import CSRFCheck
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+
+
+def enforce_csrf(request):
+    """
+    فرض التحقق من CSRF على الطلبات غير الآمنة (POST/PUT/PATCH/DELETE).
+
+    المتصفح يرسل كوكي المصادقة تلقائياً مع أي طلب، حتى لو صدر من موقع آخر؛
+    لذلك لا تكفي الكوكي وحدها لإثبات أن الطلب صادر من واجهة النظام. DRF يعفي
+    واجهاته من وسيط CSRF ويترك التحقق لفئة المصادقة، كما تفعل
+    SessionAuthentication — وهذا ما نكرّره هنا. يرفض الطلب إن غاب رمز
+    X-CSRFToken أو لم يطابق كوكي csrftoken، أو كان الأصل (Origin) غير موثوق.
+    """
+    def dummy_get_response(request):
+        return None
+
+    check = CSRFCheck(dummy_get_response)
+    check.process_request(request)
+    reason = check.process_view(request, None, (), {})
+    if reason:
+        raise exceptions.PermissionDenied(f'CSRF Failed: {reason}')
 
 
 class CookieJWTAuthentication(JWTAuthentication):
@@ -25,4 +47,6 @@ class CookieJWTAuthentication(JWTAuthentication):
         except (InvalidToken, TokenError):
             return None
 
-        return self.get_user(validated_token), validated_token
+        user = self.get_user(validated_token)
+        enforce_csrf(request)
+        return user, validated_token
