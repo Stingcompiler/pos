@@ -463,6 +463,16 @@ class SaleReturnInputSerializer(serializers.Serializer):
     reference_id = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
 
 
+class PriceChangedConflict(APIException):
+    """الإجمالي في الخادم يختلف عمّا عرضته نقطة البيع: سعر تغيّر أثناء البيع."""
+
+    status_code = status.HTTP_409_CONFLICT
+    default_code = 'price_changed'
+
+    def __init__(self, message, total):
+        super().__init__({'detail': message, 'total': str(total)})
+
+
 class InvoiceSerializer(serializers.ModelSerializer):
     """Serializer for Invoice with nested InvoiceItems."""
 
@@ -472,12 +482,16 @@ class InvoiceSerializer(serializers.ModelSerializer):
     payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
     # دفعات البيع (دفع مختلط أو جزئي). للقراءة تُعاد سجلات الدفعات كاملة.
     payments = PaymentInputSerializer(many=True, required=False, write_only=True)
+    # الإجمالي الذي عرضته الواجهة: اختلافه عن تسعير الخادم يرفض البيع بـ 409.
+    expected_total = serializers.DecimalField(
+        max_digits=14, decimal_places=2, required=False, allow_null=True, write_only=True,
+    )
 
     class Meta:
         model = Invoice
         fields = [
             'id', 'cashier', 'cashier_name', 'customer', 'customer_name', 'created_at',
-            'total_amount', 'paid_amount', 'credit_amount', 'items', 'payments',
+            'total_amount', 'paid_amount', 'credit_amount', 'items', 'payments', 'expected_total',
             'payment_method', 'payment_method_display', 'currency',
             'bank_name', 'reference_id', 'sender_account_number',
         ]
@@ -535,9 +549,12 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 allow_price_override=allow_price_override,
                 # يُمرَّر من InvoiceViewSet.create عبر serializer.save().
                 idempotency_key=validated_data.get('idempotency_key'),
+                expected_total=validated_data.get('expected_total'),
             )
         except services.IdempotencyConflict as exc:
             raise IdempotencyKeyReused(str(exc))
+        except services.PriceChanged as exc:
+            raise PriceChangedConflict(str(exc), exc.total)
         except services.PaymentError as exc:
             raise serializers.ValidationError({'payment': str(exc)})
         except services.InventoryError as exc:
@@ -880,9 +897,9 @@ class StockCountLineSerializer(serializers.ModelSerializer):
         model = StockCountLine
         fields = [
             'id', 'spare_part', 'spare_part_name', 'part_number', 'shelf_location',
-            'counted_quantity', 'system_quantity', 'current_quantity',
+            'counted_quantity', 'quantity_at_count', 'system_quantity', 'current_quantity',
         ]
-        read_only_fields = ['id', 'system_quantity']
+        read_only_fields = ['id', 'quantity_at_count', 'system_quantity']
 
 
 class StockCountSerializer(serializers.ModelSerializer):

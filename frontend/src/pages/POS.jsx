@@ -10,7 +10,7 @@ import CustomerPicker from '../components/pos/CustomerPicker';
 import PaymentPanel from '../components/pos/PaymentPanel';
 import SaleSuccess from '../components/pos/SaleSuccess';
 import {
-  discountedUnitCents, formatPercent, fromCents, parseAmountInput, priceCart, toCents,
+  centsToAmount, discountedUnitCents, formatPercent, fromCents, parseAmountInput, priceCart, toCents,
 } from '../components/pos/money';
 import { EMPTY_PAYMENT, buildPaymentPlan } from '../components/pos/payment';
 import { prepareProofImage } from '../components/pos/proofImage';
@@ -283,6 +283,23 @@ export default function POS() {
     }
   }, []);
 
+  const refreshCartPrices = async () => {
+    const fresh = await Promise.all(
+      cart.map((item) =>
+        api.get(`spare-parts/${item.id}/`).then((res) => res.data).catch(() => null)
+      )
+    );
+    const byId = new Map(fresh.filter(Boolean).map((part) => [part.id, part]));
+    setCart((prev) =>
+      prev.map((item) => {
+        const part = byId.get(item.id);
+        return part
+          ? { ...item, selling_price: part.selling_price, stock_quantity: part.stock_quantity }
+          : item;
+      })
+    );
+  };
+
   // Checkout
   const handleCheckout = async () => {
     if (cart.length === 0 || checkingOut) return;
@@ -298,6 +315,8 @@ export default function POS() {
       items: cart.map((item) => ({ spare_part: item.id, quantity: item.quantity })),
       customer: customerId,
       payments: plan.payments,
+      // الإجمالي الذي قبض الكاشير على أساسه: إن تغيّر سعر يرفض الخادم البيع (409).
+      expected_total: centsToAmount(totalCents),
     };
     const tenderedCents = payment.mode === 'cash' ? parseAmountInput(tendered) : null;
     const proof = payment.mode === 'bank' || payment.mode === 'mixed' ? proofFile : null;
@@ -311,6 +330,13 @@ export default function POS() {
         headers: { 'Idempotency-Key': checkoutKeyRef.current },
       });
     } catch (err) {
+      if (err.response?.status === 409 && err.response.data?.total !== undefined) {
+        // سعر تغيّر أثناء البيع: نحدّث أسعار السلة ليراجعها الكاشير قبل القبض.
+        await refreshCartPrices();
+        setError(`${apiErrorMessage(err)} تم تحديث أسعار السلة.`);
+        setCheckingOut(false);
+        return;
+      }
       // أخطاء الخادم تأتي تحت payment أو items أو detail.
       setError(apiErrorMessage(err, 'حدث خطأ أثناء إتمام البيع.'));
       setCheckingOut(false);

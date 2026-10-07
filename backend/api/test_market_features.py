@@ -504,3 +504,46 @@ class PrivateProofImageTests(MarketTestCase):
             other = User.objects.create_user(username='emp2', password='StrongPass123', role='employee')
             self.assertEqual(self.client_for(other).get(url).status_code, 404)
             self.assertEqual(APIClient().get(url).status_code, 401)
+
+
+class PriceChangeDuringCheckoutTests(MarketTestCase):
+    """سعر تغيّر بين البحث والبيع: يُرفض البيع بدل دين صامت أو رفض غامض."""
+
+    def test_stale_total_is_rejected_with_409(self):
+        SparePart.objects.filter(pk=self.part.pk).update(selling_price=Decimal('30.00'))
+        response = self.sell(expected_total='50.00', payments=[{'method': 'cash', 'amount': '50'}])
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data['total'], '60.00')
+        self.assertEqual(Invoice.objects.count(), 0)
+
+    def test_matching_total_sells(self):
+        response = self.sell(expected_total='50.00', payments=[{'method': 'cash', 'amount': '50'}])
+        self.assertEqual(response.status_code, 201, response.data)
+
+    def test_two_transfers_on_one_invoice(self):
+        response = self.sell(payments=[self.transfer(30, 'TRX-A'), self.transfer(20, 'TRX-B')])
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(Invoice.objects.get().payment_method, Invoice.PaymentMethod.MIXED)
+
+    def test_closed_day_blocks_sales(self):
+        DailyClose.objects.create(date=timezone.localdate(), expected_cash=0, counted_cash=0,
+                                  difference=0, closed_by=self.manager)
+        response = self.sell(payments=[{'method': 'cash', 'amount': '50'}])
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('مُقفلة', response.data['payment'])
+
+
+class StockCountSnapshotTests(MarketTestCase):
+
+    def test_sale_between_count_and_apply_is_kept(self):
+        client = self.client_for(self.supervisor)
+        count = client.post('/api/stock-counts/', {'title': 'رف A'}, format='json').data
+        # العدّ وجد 48 والنظام 50 (قطعتان مفقودتان)، ثم بيعت 5 قبل التطبيق.
+        client.post(f"/api/stock-counts/{count['id']}/lines/",
+                    {'spare_part': self.part.pk, 'counted_quantity': 48, 'mode': 'set'}, format='json')
+        services.create_invoice(cashier=self.employee, items=[{'spare_part': self.part, 'quantity': 5}])
+
+        self.assertEqual(client.post(f"/api/stock-counts/{count['id']}/apply/").status_code, 200)
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.stock_quantity, 43)
+        self.assertEqual(StockMovement.objects.get(reason=StockMovement.Reason.STOCK_COUNT).change, -2)

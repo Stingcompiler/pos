@@ -75,6 +75,8 @@ describe('صفحة نقطة البيع', () => {
       items: [{ spare_part: 7, quantity: 1 }],
       customer: null,
       payments: [{ method: 'cash', amount: '25.00' }],
+      // الإجمالي المعروض: الخادم يرفض البيع بـ 409 إن تغيّر سعر أثناء البيع.
+      expected_total: '25.00',
     });
     expect(config.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/);
   });

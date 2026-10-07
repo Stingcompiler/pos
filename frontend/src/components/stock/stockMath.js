@@ -1,14 +1,17 @@
 /**
  * حسابات الجرد — دوال نقية تُختبر بمعزل عن الشاشة.
  *
- * قبل التطبيق يُقارن المعدود برصيد النظام الحالي (current_quantity، يتغيّر مع
- * كل بيع)، وبعده بالرصيد المحفوظ لحظة التطبيق (system_quantity).
+ * قبل التطبيق يُقارن المعدود برصيد النظام لحظة العدّ (quantity_at_count) —
+ * فالخادم يضيف هذا الفرق إلى الرصيد الحالي فلا تُمحى مبيعات ما بعد العدّ —
+ * وبعده بالرصيد المحفوظ لحظة التطبيق (system_quantity).
  */
 import { normalizeDigits } from '../cash/cashMath';
 
 /** رصيد النظام الذي يُقارن به السطر. */
 export function baseQuantity(line, { applied = false } = {}) {
-  const value = applied ? line.system_quantity : line.current_quantity;
+  const value = applied
+    ? line.system_quantity
+    : line.quantity_at_count ?? line.current_quantity;
   return value === null || value === undefined ? null : Number(value);
 }
 
