@@ -628,3 +628,13 @@ class PublicOrderSaleTests(MarketTestCase):
         order_id = self.place_order()
         response = self.sell_order(order_id, [{'method': 'cash', 'amount': '50'}], user=self.employee)
         self.assertEqual(response.status_code, 403)
+
+
+    def test_summary_counts_all_orders(self):
+        sold = self.place_order()
+        self.confirm(sold)
+        self.sell_order(sold, [{'method': 'cash', 'amount': '50'}])
+        self.place_order()
+        data = self.client_for(self.manager).get('/api/public-orders/summary/').data
+        self.assertEqual(data['counts'], {'pending': 1, 'confirmed': 0, 'completed': 1, 'cancelled': 0})
+        self.assertEqual(Decimal(str(data['completed_total'])), Decimal('50.00'))

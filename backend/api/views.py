@@ -1168,6 +1168,17 @@ class PublicOrderViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
 
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        """أعداد الطلبات لكل حالة وقيمة المبيع منها (لبطاقات الصفحة مهما كانت صفحة القائمة)."""
+        counts = dict(PublicOrder.objects.values_list('status').annotate(n=Count('id')))
+        sold = PublicOrder.objects.filter(status=PublicOrder.Status.COMPLETED).aggregate(
+            total=Sum('total_amount'))['total']
+        return Response({
+            'counts': {status_value: counts.get(status_value, 0) for status_value in PublicOrder.Status.values},
+            'completed_total': sold or 0,
+        })
+
     @action(detail=True, methods=['post'], url_path='invoice')
     def sell(self, request, pk=None):
         """

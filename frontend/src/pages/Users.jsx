@@ -1,20 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../api/axios';
+import Pagination from '../components/sales/Pagination';
+import usePagedList from '../hooks/usePagedList';
+
+const PAGE_SIZE = 25;
 import { Users as UsersIcon, Plus, Trash2, X, Loader2, Save } from 'lucide-react';
 
 export default function Users() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items: users, count, page, setPage, loading, reload: load } = usePagedList('users/', { pageSize: PAGE_SIZE });
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const emptyForm = { username:'', password:'', first_name:'', last_name:'', email:'', role:'employee' };
   const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => { load(); }, []);
-  const load = async () => { setLoading(true); try { const r = await api.get('users/'); setUsers(r.data.results||r.data); } catch {
-      // نتجاهل الخطأ: تبقى القائمة كما هي، ويظهر الخطأ عند الحفظ فقط.
-    } finally { setLoading(false); } };
 
   const handleSave = async (e) => {
     e.preventDefault(); setSaving(true); setError('');
@@ -58,6 +57,9 @@ export default function Users() {
           </tr>
         ))}
       </tbody></table></div></div>
+      <div className="mt-4">
+        <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} disabled={loading} noun="مستخدم" />
+      </div>
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={()=>setShowModal(false)}>

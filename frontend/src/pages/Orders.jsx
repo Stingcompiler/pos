@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import {
   ShoppingCart, Clock, CheckCircle, XCircle, MessageSquare,
@@ -7,35 +7,41 @@ import {
 import { DATE_LOCALE } from '../utils/dates';
 import { apiErrorMessage } from '../utils/api';
 import SellOrderModal from '../components/orders/SellOrderModal';
+import Pagination from '../components/sales/Pagination';
+import usePagedList from '../hooks/usePagedList';
+
+const PAGE_SIZE = 20;
+const STATUS_FILTERS = [
+  { value: '', label: 'كل الطلبات' },
+  { value: 'pending', label: 'قيد الانتظار' },
+  { value: 'confirmed', label: 'مؤكدة' },
+  { value: 'completed', label: 'تم البيع' },
+  { value: 'cancelled', label: 'ملغاة' },
+];
 
 // الطلب المبيع أُغلق بفاتورته: لا تغيير لحالته بعدها (الإرجاع مرتجع على الفاتورة).
 const canSell = (order) => order.status === 'pending' || order.status === 'confirmed';
 
 export default function Orders() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
+  const {
+    items: orders, setItems: setOrders, count, page, setPage, loading, error: listError,
+  } = usePagedList('public-orders/', { pageSize: PAGE_SIZE, params: { status: statusFilter } });
+  const [summary, setSummary] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [sellingOrder, setSellingOrder] = useState(null);
 
-  useEffect(() => {
-    loadOrders();
+  // البطاقات من كل الطلبات لا من الصفحة المعروضة.
+  const loadSummary = useCallback(() => {
+    api.get('public-orders/summary/').then(({ data }) => setSummary(data)).catch(() => {});
   }, []);
 
-  const loadOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('public-orders/');
-      // Django returns order records
-      setOrders(res.data.results || res.data);
-    } catch (err) {
-      console.error('Failed to load orders:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
 
   const patchOrder = (orderId, changes) => {
     setOrders((prev) => prev.map((ord) => (ord.id === orderId ? { ...ord, ...changes } : ord)));
@@ -46,6 +52,7 @@ export default function Orders() {
     const order = sellingOrder;
     setSellingOrder(null);
     patchOrder(order.id, { status: 'completed', invoice: invoice.id });
+    loadSummary();
     setErrorMessage('');
     setSuccessMessage(`بِيع الطلب #${order.id} بالفاتورة #${invoice.id}؛ تجدها في صفحة الفواتير للطباعة.`);
   };
@@ -57,6 +64,7 @@ export default function Orders() {
     try {
       const { data } = await api.patch(`public-orders/${orderId}/`, { status: newStatus });
       patchOrder(orderId, { status: data.status });
+      loadSummary();
     } catch (err) {
       setErrorMessage(apiErrorMessage(
         err, 'عذراً، فشل تحديث حالة الطلب. قد يكون السبب نقص كميات المخزون المتوفرة.',
@@ -116,15 +124,10 @@ export default function Orders() {
     return `https://wa.me/${cleanPhone}?text=${message}`;
   };
 
-  // Stats
-  const pendingOrders = orders.filter((o) => o.status === 'pending');
-  const confirmedOrders = orders.filter((o) => o.status === 'confirmed');
-  const cancelledOrders = orders.filter((o) => o.status === 'cancelled');
-  const totalRevenue = orders
-    .filter((o) => o.status === 'completed')
-    .reduce((sum, o) => sum + Number(o.total_amount), 0);
+  const counts = summary?.counts || {};
+  const totalRevenue = Number(summary?.completed_total || 0);
 
-  if (loading) {
+  if (loading && !orders.length && !listError) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
@@ -164,7 +167,7 @@ export default function Orders() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
           <div>
-            <p className="text-2xl font-bold text-white mb-1">{pendingOrders.length}</p>
+            <p className="text-2xl font-bold text-white mb-1">{counts.pending ?? 0}</p>
             <p className="text-xs text-surface-400">طلبات قيد الانتظار</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-warning-500/10 border border-warning-500/20 flex items-center justify-center text-warning-400">
@@ -174,7 +177,7 @@ export default function Orders() {
 
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
           <div>
-            <p className="text-2xl font-bold text-white mb-1">{confirmedOrders.length}</p>
+            <p className="text-2xl font-bold text-white mb-1">{counts.confirmed ?? 0}</p>
             <p className="text-xs text-surface-400">مؤكدة بانتظار البيع</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-success-500/10 border border-success-500/20 flex items-center justify-center text-success-400">
@@ -184,7 +187,7 @@ export default function Orders() {
 
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
           <div>
-            <p className="text-2xl font-bold text-white mb-1">{cancelledOrders.length}</p>
+            <p className="text-2xl font-bold text-white mb-1">{counts.cancelled ?? 0}</p>
             <p className="text-xs text-surface-400">طلبات ملغاة</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-danger-500/10 border border-danger-500/20 flex items-center justify-center text-danger-400">
@@ -212,13 +215,30 @@ export default function Orders() {
             <ShoppingCart className="w-4 h-4 text-primary-400" />
             سجل طلبات الزبائن
           </h2>
-          <span className="text-[10px] text-surface-450 font-mono">العدد الإجمالي: {orders.length}</span>
+          <label className="flex items-center gap-2 text-xs text-surface-400">
+            <span className="sr-only">تصفية حسب الحالة</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold"
+            >
+              {STATUS_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
+
+        {listError && (
+          <div role="alert" className="m-4 p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">
+            {apiErrorMessage(listError, 'تعذّر تحميل الطلبات.')}
+          </div>
+        )}
 
         {orders.length === 0 ? (
           <div className="flex flex-col items-center gap-3 text-center py-16 text-surface-500 text-sm">
             <Inbox className="w-12 h-12 opacity-30" />
-            <span>لا توجد طلبات خارجية واردة حالياً</span>
+            <span>{statusFilter ? 'لا توجد طلبات بهذه الحالة' : 'لا توجد طلبات خارجية واردة حالياً'}</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -307,6 +327,9 @@ export default function Orders() {
             </table>
           </div>
         )}
+        <div className="px-5 pb-4">
+          <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} disabled={loading} noun="طلب" />
+        </div>
       </div>
 
       {sellingOrder && (

@@ -1,30 +1,17 @@
-import { useState, useEffect } from 'react';
-import api from '../api/axios';
+import { useState } from 'react';
 import { Mail, Calendar, Phone, User, Loader2, AlertCircle, Eye, RefreshCw } from 'lucide-react';
 import { DATE_LOCALE } from '../utils/dates';
+import Pagination from '../components/sales/Pagination';
+import usePagedList from '../hooks/usePagedList';
+
+const PAGE_SIZE = 20;
 
 export default function Messages() {
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    items: messages, count, page, setPage, loading, error: listError, reload: fetchMessages,
+  } = usePagedList('contact-messages/', { pageSize: PAGE_SIZE });
+  const error = listError ? 'حدث خطأ أثناء تحميل الرسائل الواردة' : '';
   const [selectedMsg, setSelectedMsg] = useState(null);
-
-  const fetchMessages = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await api.get('contact-messages/');
-      setMessages(res.data.results || res.data);
-    } catch {
-      setError('حدث خطأ أثناء تحميل الرسائل الواردة');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMessages();
-  }, []);
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleString(DATE_LOCALE, {
@@ -149,6 +136,8 @@ export default function Messages() {
               </div>
             ))}
           </div>
+
+          <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} disabled={loading} noun="رسالة" />
         </>
       )}
 
