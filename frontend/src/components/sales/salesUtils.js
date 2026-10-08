@@ -234,3 +234,20 @@ export function formatDate(value) {
   return new Intl.DateTimeFormat(DATE_LOCALE, { year: 'numeric', month: '2-digit', day: '2-digit' })
     .format(new Date(value));
 }
+
+// ─── بيع طلب المتجر ─────────────────────────────────────────────────────────
+
+/**
+ * دفعات بيع طلب المتجر: كامل المبلغ نقداً أو تحويلاً، أو بلا دفعات (آجل على
+ * العميل ضمن حده). الخادم يحسب الإجمالي من أسعار الطلب.
+ */
+export function buildOrderSalePayload({ method, total, bank }) {
+  if (method === 'credit') return { payments: [] };
+  const payment = { method, amount: centsToAmount(toCents(total)) };
+  if (method === 'bank') {
+    Object.assign(payment, bankPayload(bank), {
+      sender_account_number: String(bank.senderAccount || '').trim(),
+    });
+  }
+  return { payments: [payment] };
+}

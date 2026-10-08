@@ -788,8 +788,11 @@ class PublicOrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PublicOrder
-        fields = ['id', 'customer_name', 'phone_number', 'email', 'location', 'status', 'created_at', 'total_amount', 'items']
-        read_only_fields = ['id', 'created_at', 'status', 'total_amount']
+        fields = [
+            'id', 'customer_name', 'phone_number', 'email', 'location', 'status', 'created_at',
+            'total_amount', 'items', 'invoice',
+        ]
+        read_only_fields = ['id', 'created_at', 'status', 'total_amount', 'invoice']
 
     def validate_items(self, value):
         if not value:
@@ -819,6 +822,12 @@ class PublicOrderSerializer(serializers.ModelSerializer):
                 PublicOrderItem.objects.create(order=order, **item_data)
 
         return order
+
+
+class PublicOrderInvoiceSerializer(serializers.Serializer):
+    """بيع طلب المتجر: دفعاته (نقد/تحويل)؛ ما لم يُدفع يصبح آجلاً على العميل."""
+
+    payments = PaymentInputSerializer(many=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -553,3 +553,78 @@ class StockCountSnapshotTests(MarketTestCase):
         self.part.refresh_from_db()
         self.assertEqual(self.part.stock_quantity, 43)
         self.assertEqual(StockMovement.objects.get(reason=StockMovement.Reason.STOCK_COUNT).change, -2)
+
+
+class PublicOrderSaleTests(MarketTestCase):
+    """طلب المتجر: التأكيد يحجز المخزون، والبيع بفاتورة يُدخله الإيراد والصندوق."""
+
+    def place_order(self, quantity=2):
+        response = APIClient().post('/api/public-orders/', {
+            'customer_name': 'عثمان', 'phone_number': '0912000111', 'location': 'بحري',
+            'items': [{'spare_part': self.part.pk, 'quantity': quantity}],
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        return response.data['id']
+
+    def confirm(self, order_id):
+        return self.client_for(self.supervisor).patch(
+            f'/api/public-orders/{order_id}/', {'status': 'confirmed'}, format='json')
+
+    def sell_order(self, order_id, payments, user=None):
+        return self.client_for(user or self.supervisor).post(
+            f'/api/public-orders/{order_id}/invoice/', {'payments': payments}, format='json')
+
+    def test_confirmed_order_sells_once_at_order_price(self):
+        order_id = self.place_order()
+        self.assertEqual(self.confirm(order_id).status_code, 200)
+        SparePart.objects.filter(pk=self.part.pk).update(selling_price=Decimal('40.00'))
+
+        response = self.sell_order(order_id, [{'method': 'cash', 'amount': '50'}])
+        self.assertEqual(response.status_code, 201, response.data)
+        invoice = Invoice.objects.get()
+        self.assertEqual((invoice.total_amount, invoice.paid_amount), (Decimal('50.00'), Decimal('50.00')))
+        self.assertEqual((invoice.customer.phone, invoice.customer.name), ('0912000111', 'عثمان'))
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.stock_quantity, 48)
+        self.assertEqual(
+            list(StockMovement.objects.order_by('pk').values_list('reason', 'change')),
+            [('public_order_confirmed', -2), ('public_order_invoiced', 2), ('sale', -2)],
+        )
+        order = self.client_for(self.manager).get(f'/api/public-orders/{order_id}/').data
+        self.assertEqual((order['status'], order['invoice']), ('completed', invoice.pk))
+        summary = services.daily_summary(timezone.localdate())
+        self.assertEqual((summary['sales_total'], summary['cash_in']), (Decimal('50.00'), Decimal('50.00')))
+
+        again = self.sell_order(order_id, [{'method': 'cash', 'amount': '50'}])
+        self.assertEqual((again.status_code, again.data['id']), (200, invoice.pk))
+        self.assertEqual(self.confirm(order_id).data['status'], 'completed')
+        cancel = self.client_for(self.manager).patch(
+            f'/api/public-orders/{order_id}/', {'status': 'cancelled'}, format='json')
+        self.assertEqual(cancel.status_code, 400)
+        self.part.refresh_from_db()
+        self.assertEqual((Invoice.objects.count(), self.part.stock_quantity), (1, 48))
+
+    def test_pending_order_sells_directly(self):
+        order_id = self.place_order(quantity=3)
+        response = self.sell_order(order_id, [self.transfer(75)])
+        self.assertEqual(response.status_code, 201, response.data)
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.stock_quantity, 47)
+        self.assertEqual(Invoice.objects.get().payment_method, Invoice.PaymentMethod.BANK)
+
+    def test_failed_sale_keeps_reservation(self):
+        order_id = self.place_order()
+        self.confirm(order_id)
+        # عميل جديد بلا حد ائتمان: الآجل يُرفض، والطلب يبقى مؤكداً بحجزه.
+        response = self.sell_order(order_id, [])
+        self.assertEqual(response.status_code, 400)
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.stock_quantity, 48)
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(self.client_for(self.manager).get(f'/api/public-orders/{order_id}/').data['status'],
+                         'confirmed')
+
+    def test_employee_cannot_sell_orders(self):
+        order_id = self.place_order()
+        response = self.sell_order(order_id, [{'method': 'cash', 'amount': '50'}], user=self.employee)
+        self.assertEqual(response.status_code, 403)

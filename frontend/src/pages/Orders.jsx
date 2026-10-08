@@ -2,9 +2,14 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import {
   ShoppingCart, Clock, CheckCircle, XCircle, MessageSquare,
-  ChevronDown, ChevronUp, Loader2, DollarSign, Inbox
+  ChevronDown, ChevronUp, Loader2, DollarSign, Inbox, ReceiptText
 } from 'lucide-react';
 import { DATE_LOCALE } from '../utils/dates';
+import { apiErrorMessage } from '../utils/api';
+import SellOrderModal from '../components/orders/SellOrderModal';
+
+// الطلب المبيع أُغلق بفاتورته: لا تغيير لحالته بعدها (الإرجاع مرتجع على الفاتورة).
+const canSell = (order) => order.status === 'pending' || order.status === 'confirmed';
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -12,6 +17,8 @@ export default function Orders() {
   const [updatingId, setUpdatingId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [sellingOrder, setSellingOrder] = useState(null);
 
   useEffect(() => {
     loadOrders();
@@ -30,26 +37,30 @@ export default function Orders() {
     }
   };
 
+  const patchOrder = (orderId, changes) => {
+    setOrders((prev) => prev.map((ord) => (ord.id === orderId ? { ...ord, ...changes } : ord)));
+    setSelectedOrder((prev) => (prev && prev.id === orderId ? { ...prev, ...changes } : prev));
+  };
+
+  const handleSold = (invoice) => {
+    const order = sellingOrder;
+    setSellingOrder(null);
+    patchOrder(order.id, { status: 'completed', invoice: invoice.id });
+    setErrorMessage('');
+    setSuccessMessage(`بِيع الطلب #${order.id} بالفاتورة #${invoice.id}؛ تجدها في صفحة الفواتير للطباعة.`);
+  };
+
   const handleUpdateStatus = async (orderId, newStatus) => {
     setUpdatingId(orderId);
     setErrorMessage('');
+    setSuccessMessage('');
     try {
-      await api.patch(`public-orders/${orderId}/`, { status: newStatus });
-      
-      // Update local state
-      setOrders((prev) =>
-        prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
-      );
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder((prev) => ({ ...prev, status: newStatus }));
-      }
+      const { data } = await api.patch(`public-orders/${orderId}/`, { status: newStatus });
+      patchOrder(orderId, { status: data.status });
     } catch (err) {
-      console.error('Failed to update status:', err);
-      const errMsg = err.response?.data?.non_field_errors?.[0] || 
-                     err.response?.data?.status?.[0] || 
-                     'عذراً، فشل تحديث حالة الطلب. قد يكون السبب نقص كميات المخزون المتوفرة.';
-      setErrorMessage(errMsg);
-      alert(errMsg);
+      setErrorMessage(apiErrorMessage(
+        err, 'عذراً، فشل تحديث حالة الطلب. قد يكون السبب نقص كميات المخزون المتوفرة.',
+      ));
     } finally {
       setUpdatingId(null);
     }
@@ -70,6 +81,13 @@ export default function Orders() {
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-success-500/10 text-success-400 border border-success-500/20">
             <CheckCircle className="w-3.5 h-3.5" />
             تم التأكيد
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary-500/10 text-primary-300 border border-primary-500/20">
+            <ReceiptText className="w-3.5 h-3.5" />
+            تم البيع
           </span>
         );
       case 'cancelled':
@@ -102,7 +120,9 @@ export default function Orders() {
   const pendingOrders = orders.filter((o) => o.status === 'pending');
   const confirmedOrders = orders.filter((o) => o.status === 'confirmed');
   const cancelledOrders = orders.filter((o) => o.status === 'cancelled');
-  const totalRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+  const totalRevenue = orders
+    .filter((o) => o.status === 'completed')
+    .reduce((sum, o) => sum + Number(o.total_amount), 0);
 
   if (loading) {
     return (
@@ -133,6 +153,13 @@ export default function Orders() {
         </div>
       )}
 
+      {successMessage && (
+        <div role="status" className="flex items-start gap-2 p-4 rounded-xl bg-success-500/10 border border-success-500/20 text-success-400 text-sm">
+          <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
@@ -148,7 +175,7 @@ export default function Orders() {
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
           <div>
             <p className="text-2xl font-bold text-white mb-1">{confirmedOrders.length}</p>
-            <p className="text-xs text-surface-400">طلبات مؤكدة</p>
+            <p className="text-xs text-surface-400">مؤكدة بانتظار البيع</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-success-500/10 border border-success-500/20 flex items-center justify-center text-success-400">
             <CheckCircle className="w-5 h-5" />
@@ -170,7 +197,7 @@ export default function Orders() {
             <p className="text-lg font-bold text-accent-400 truncate mb-1">
               {formatCurrency(totalRevenue)}
             </p>
-            <p className="text-xs text-surface-400">إجمالي إيرادات المؤكدة</p>
+            <p className="text-xs text-surface-400">مبيعات الطلبات (بفواتير)</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-accent-500/10 border border-accent-500/20 flex items-center justify-center text-accent-400">
             <DollarSign className="w-5 h-5" />
@@ -239,15 +266,28 @@ export default function Orders() {
 
                         {/* Status Quick Action Dropdown */}
                         <select
-                          disabled={updatingId === order.id}
+                          aria-label={`حالة الطلب #${order.id}`}
+                          disabled={updatingId === order.id || order.status === 'completed'}
                           value={order.status}
                           onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
                           className="px-2 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-primary-500 cursor-pointer disabled:opacity-50"
                         >
                           <option value="pending">قيد الانتظار</option>
                           <option value="confirmed">تأكيد الطلب</option>
+                          <option value="completed" disabled>تم البيع</option>
                           <option value="cancelled">إلغاء الطلب</option>
                         </select>
+
+                        {canSell(order) && (
+                          <button
+                            type="button"
+                            onClick={() => { setSuccessMessage(''); setSellingOrder(order); }}
+                            className="px-3 py-1.5 rounded-lg gradient-primary text-white text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                          >
+                            <ReceiptText className="w-3.5 h-3.5" aria-hidden="true" />
+                            بيع
+                          </button>
+                        )}
 
                         {/* WhatsApp CTA */}
                         <a
@@ -268,6 +308,10 @@ export default function Orders() {
           </div>
         )}
       </div>
+
+      {sellingOrder && (
+        <SellOrderModal order={sellingOrder} onClose={() => setSellingOrder(null)} onSuccess={handleSold} />
+      )}
 
       {/* Accordion / Details display */}
       {selectedOrder && (
@@ -310,16 +354,20 @@ export default function Orders() {
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-xs text-surface-400">تغيير سريع:</span>
                 <select
-                  disabled={updatingId === selectedOrder.id}
+                  disabled={updatingId === selectedOrder.id || selectedOrder.status === 'completed'}
                   value={selectedOrder.status}
                   onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value)}
                   className="px-2 py-1 bg-surface-900 border border-white/10 text-white text-xs rounded outline-none cursor-pointer"
                 >
                   <option value="pending">قيد الانتظار</option>
                   <option value="confirmed">تأكيد الطلب</option>
+                  <option value="completed" disabled>تم البيع</option>
                   <option value="cancelled">إلغاء الطلب</option>
                 </select>
               </div>
+              {selectedOrder.invoice && (
+                <p className="mt-2 text-xs text-primary-300">فاتورة البيع: #{selectedOrder.invoice}</p>
+              )}
             </div>
           </div>
 

@@ -699,6 +699,7 @@ class PublicOrder(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'قيد الانتظار'
         CONFIRMED = 'confirmed', 'تم التأكيد'
+        COMPLETED = 'completed', 'تم البيع'
         CANCELLED = 'cancelled', 'ملغي'
 
     customer_name = models.CharField(max_length=255, verbose_name='اسم الزبون')
@@ -714,6 +715,12 @@ class PublicOrder(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الطلب')
     total_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=0, verbose_name='القيمة الإجمالية'
+    )
+    # فاتورة البيع عند استلام المبلغ: بها يدخل الطلب الإيراد والتقارير وإقفال
+    # اليومية والمرتجعات. التأكيد وحده حجزٌ للمخزون لا بيع.
+    invoice = models.OneToOneField(
+        'Invoice', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='public_order', verbose_name='فاتورة البيع',
     )
 
     class Meta:
@@ -796,6 +803,7 @@ class StockMovement(models.Model):
         SALE = 'sale', 'بيع'
         PUBLIC_ORDER_CONFIRMED = 'public_order_confirmed', 'تأكيد طلب خارجي'
         PUBLIC_ORDER_CANCELLED = 'public_order_cancelled', 'إلغاء طلب خارجي'
+        PUBLIC_ORDER_INVOICED = 'public_order_invoiced', 'تحرير حجز طلب خارجي لبيعه بفاتورة'
         RESTOCK = 'restock', 'توريد'
         RESTOCK_REVERSAL = 'restock_reversal', 'إلغاء توريد'
         RETURN = 'return', 'مرتجع'

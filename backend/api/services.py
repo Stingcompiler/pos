@@ -728,7 +728,8 @@ def confirm_public_order(order: PublicOrder, *, user=None) -> PublicOrder:
     with transaction.atomic():
         order = PublicOrder.objects.select_for_update().get(pk=order.pk)
 
-        if order.status == PublicOrder.Status.CONFIRMED:
+        # المبيع تجاوز التأكيد (خُصم مخزونه بفاتورته)؛ إعادة تأكيده خصم مزدوج.
+        if order.status in (PublicOrder.Status.CONFIRMED, PublicOrder.Status.COMPLETED):
             return order
         if order.status == PublicOrder.Status.CANCELLED:
             raise InventoryError('لا يمكن تأكيد طلب ملغي.')
@@ -770,6 +771,10 @@ def cancel_public_order(order: PublicOrder, *, user=None) -> PublicOrder:
 
         if order.status == PublicOrder.Status.CANCELLED:
             return order
+        if order.status == PublicOrder.Status.COMPLETED:
+            raise InventoryError(
+                f'الطلب بِيع بالفاتورة #{order.invoice_id}؛ لإرجاعه سجّل مرتجعاً على الفاتورة.'
+            )
 
         was_confirmed = order.status == PublicOrder.Status.CONFIRMED
 
@@ -789,6 +794,65 @@ def cancel_public_order(order: PublicOrder, *, user=None) -> PublicOrder:
         order.save(update_fields=['status'])
 
     return order
+
+
+def _customer_for_order(order: PublicOrder) -> Customer:
+    """عميل الطلب برقم هاتفه، أو عميل جديد ببيانات الطلب (لكشف الحساب والآجل)."""
+    phone = order.phone_number.strip()
+    customer = Customer.objects.filter(phone=phone).order_by('pk').first()
+    if customer is None:
+        customer = Customer.objects.create(
+            name=order.customer_name, phone=phone,
+            email=order.email or None, location=order.location or None,
+        )
+    return customer
+
+
+def invoice_public_order(order: PublicOrder, *, cashier, payments=None) -> Invoice:
+    """
+    بيع طلب المتجر عند استلام المبلغ: فاتورة بأسعار الطلب على عميله، وتُغلق الطلب.
+
+    الطلب المؤكد حجز مخزونه عند التأكيد؛ يُحرَّر الحجز ثم تخصمه الفاتورة في
+    المعاملة نفسها، فيظهر في سجل الحركات «تحرير حجز» ثم «بيع» بلا خصم مزدوج.
+    تكرار الطلب (ضغطتان) يعيد الفاتورة نفسها ولا يبيع مرتين.
+    """
+    with transaction.atomic():
+        order = PublicOrder.objects.select_for_update().get(pk=order.pk)
+        if order.status == PublicOrder.Status.COMPLETED:
+            invoice = order.invoice
+            invoice.idempotent_replay = True
+            return invoice
+        if order.status == PublicOrder.Status.CANCELLED:
+            raise InventoryError('لا يمكن بيع طلب ملغي.')
+
+        rows = list(order.items.all())
+        if not rows:
+            raise InventoryError('لا يمكن بيع طلب بدون بنود.')
+
+        if order.status == PublicOrder.Status.CONFIRMED:
+            locked_parts = _lock_parts(row.spare_part_id for row in rows)
+            for row in rows:
+                increase_stock(
+                    locked_parts[row.spare_part_id], row.quantity,
+                    StockMovement.Reason.PUBLIC_ORDER_INVOICED,
+                    reference=f"Order #{order.pk}", user=cashier,
+                )
+
+        # السعر الذي وُعد به الزبون عند الطلب، لا سعر اليوم.
+        invoice = create_invoice(
+            cashier=cashier,
+            customer=_customer_for_order(order),
+            items=[
+                {'spare_part': row.spare_part_id, 'quantity': row.quantity, 'unit_price': row.unit_price}
+                for row in rows
+            ],
+            payments=payments,
+            allow_price_override=True,
+        )
+        order.invoice = invoice
+        order.status = PublicOrder.Status.COMPLETED
+        order.save(update_fields=['invoice', 'status'])
+    return invoice
 
 
 # ─────────────────────────────────────────────────────────────────────────────

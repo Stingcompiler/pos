@@ -67,7 +67,7 @@ from .serializers import (
     CustomerSerializer, CollectionSerializer, PaymentSerializer,
     SaleReturnInputSerializer, SaleReturnSerializer,
     SupplierSerializer, SupplyDealSerializer, SupplierDetailSerializer,
-    PublicOrderSerializer, NotificationSerializer, StockMovementSerializer,
+    PublicOrderSerializer, PublicOrderInvoiceSerializer, NotificationSerializer, StockMovementSerializer,
     business_error, PRIVILEGED_ROLES,
 )
 from .permissions import RoleBasedPermission, IsManager, IsManagerOrSupervisor
@@ -1135,7 +1135,7 @@ class PublicOrderViewSet(viewsets.ModelViewSet):
                     # إرجاع طلب مؤكد إلى قيد الانتظار لا يُرجع المخزون (بخلاف
                     # الإلغاء) فيصبح تأكيده لاحقاً خصماً مزدوجاً لنفس البنود.
                     # نمنعه صراحةً ونوجّه المستخدم إلى الإلغاء الذي يُرجع الكميات.
-                    if order.status == PublicOrder.Status.CONFIRMED:
+                    if order.status in (PublicOrder.Status.CONFIRMED, PublicOrder.Status.COMPLETED):
                         return Response(
                             {'detail': 'لا يمكن إرجاع طلب مؤكد إلى قيد الانتظار '
                                        'لأن مخزونه خُصم بالفعل. ألغِ الطلب '
@@ -1156,6 +1156,25 @@ class PublicOrderViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'], url_path='invoice')
+    def sell(self, request, pk=None):
+        """
+        بيع الطلب عند استلام المبلغ: فاتورة بأسعار الطلب على عميله (يُنشأ من
+        هاتفه إن لم يوجد). تعيد الفاتورة؛ وضغطة ثانية تعيد الفاتورة نفسها.
+        """
+        order = self.get_object()
+        serializer = PublicOrderInvoiceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            invoice = services.invoice_public_order(
+                order, cashier=request.user, payments=serializer.validated_data['payments'],
+            )
+        except services.InventoryError as exc:  # PaymentError منه أيضاً
+            raise business_error(exc)
+        data = InvoiceSerializer(invoice, context=self.get_serializer_context()).data
+        replay = getattr(invoice, 'idempotent_replay', False)
+        return Response(data, status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

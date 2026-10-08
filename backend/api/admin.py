@@ -305,7 +305,7 @@ class PublicOrderAdmin(admin.ModelAdmin):
     inlines = [PublicOrderItemInline]
     # الحالة تتغيّر بإجراءَي التأكيد والإلغاء فقط، لأنهما يخصمان المخزون
     # ويُرجعانه؛ تعديلها كحقل يغيّر الحالة دون أي أثر على الرصيد.
-    readonly_fields = ['status', 'total_amount', 'created_at']
+    readonly_fields = ['status', 'total_amount', 'created_at', 'invoice']
     actions = ['confirm_orders', 'cancel_orders']
 
     def has_add_permission(self, request):
