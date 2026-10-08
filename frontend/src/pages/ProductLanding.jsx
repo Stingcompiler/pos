@@ -55,31 +55,31 @@ const PROBLEMS = [
 
 const SHOWCASE = [
   {
-    image: 'pos.jpg',
+    image: 'pos.webp',
     title: 'نقطة بيع سريعة',
     text: 'امسح الباركود أو ابحث بالاسم، والقطعة تدخل السلة مباشرة. الدفع نقداً أو تحويلاً أو مختلطاً أو آجلاً، ثم إيصال على طابعة حرارية.',
     points: ['قارئ باركود USB أو بلوتوث', 'إيصال 80 أو 58 مم أو A4', 'خصم تلقائي للورش وتجار الجملة'],
   },
   {
-    image: 'statement.jpg',
+    image: 'statement.webp',
     title: 'العملاء والديون',
     text: 'ملف لكل عميل: الرصيد المستحق، والائتمان المتاح، وكشف حساب برصيد جارٍ، وسجل فواتيره.',
     points: ['البيع الآجل ضمن حد ائتمان', 'تسجيل دفعة نقداً أو تحويلاً', 'قائمة المدينين بنقرة'],
   },
   {
-    image: 'daily-close.jpg',
+    image: 'daily-close.webp',
     title: 'إقفال اليومية',
     text: 'في نهاية اليوم: المبيعات والتحصيلات والمرتجعات والمصروفات، والنقد المتوقع في الدرج مقابل المعدود.',
     points: ['المصروفات اليومية', 'الفرق: عجز أو زيادة', 'ملخص مطبوع لكل يوم'],
   },
   {
-    image: 'transfers.jpg',
+    image: 'transfers.webp',
     title: 'مطابقة التحويلات',
     text: 'كل تحويل برقم إشعاره وحساب المرسل وصورة الإشعار. علّمه «مطابق» بعد مقارنته بكشف البنك.',
     points: ['رفض الإشعار المكرر', 'إجمالي كل حساب بنكي', 'تحويلات غير مطابقة ظاهرة'],
   },
   {
-    image: 'dashboard.jpg',
+    image: 'dashboard.webp',
     title: 'لوحة صاحب المحل',
     text: 'إيرادات اليوم الصافية، والبيع الآجل، والتحصيلات، وتنبيهات المخزون المنخفض، وإجمالي ديون العملاء.',
     points: ['تقارير الأرباح بالفترة', 'أكثر القطع مبيعاً', 'صلاحيات للمدير والمشرف والكاشير'],
@@ -269,18 +269,18 @@ export default function ProductLanding({ demoAccounts = [] }) {
             </div>
             <div className="relative">
               <img
-                src={shot('pos-mobile.jpg')}
+                src={shot('pos-mobile.webp')}
                 alt="نقطة البيع على الهاتف: سلة مبيعات وطريقة الدفع"
                 className="sm:hidden mx-auto w-60 rounded-[1.75rem] border-4 border-surface-800 shadow-2xl shadow-black/60"
               />
               <Frame
-                src={shot('pos.jpg')}
+                src={shot('pos.webp')}
                 alt="شاشة نقطة البيع في اسبير: سلة مبيعات ونتائج بحث عن طرمبة"
                 className="hidden sm:block"
                 eager
               />
               <img
-                src={shot('pos-mobile.jpg')}
+                src={shot('pos-mobile.webp')}
                 alt="نقطة البيع على الهاتف"
                 loading="lazy"
                 className="hidden sm:block absolute -bottom-10 -left-4 w-40 md:w-48 rounded-[1.75rem] border-4 border-surface-800 shadow-2xl shadow-black/60"
