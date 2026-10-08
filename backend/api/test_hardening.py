@@ -5,6 +5,7 @@
 
 import io
 from decimal import Decimal
+from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from openpyxl import Workbook
@@ -187,8 +188,15 @@ class DemoSeedTests(BaseAPITestCase):
         from rest_framework.test import APIClient
         from api.models import Invoice, PublicOrder
 
-        with override_settings(DEMO_MODE=True):
+        import tempfile
+        # --reset يمسح مجلدَي الصور: مجلدات مؤقتة لا مجلدات المشروع الحقيقية.
+        with tempfile.TemporaryDirectory() as folder, override_settings(
+            DEMO_MODE=True, MEDIA_ROOT=f'{folder}/media', PRIVATE_MEDIA_ROOT=f'{folder}/private',
+        ):
+            Path(folder, 'media').mkdir()
+            Path(folder, 'media', 'old.jpg').write_bytes(b'x')
             call_command('seed_demo', reset=True, stdout=io.StringIO())
+            self.assertFalse(Path(folder, 'media', 'old.jpg').exists())
             self.assertGreater(Invoice.objects.count(), 20)
             self.assertEqual(PublicOrder.objects.count(), 2)
             accounts = APIClient().get('/api/public/settings/').data['demo_accounts']

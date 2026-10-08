@@ -90,6 +90,8 @@ class Command(BaseCommand):
                 raise CommandError('--reset يمسح القاعدة كلها؛ مسموح فقط مع DJANGO_DEMO_MODE=True.')
             call_command('flush', interactive=False, verbosity=0)
             for root in (settings.MEDIA_ROOT, settings.PRIVATE_MEDIA_ROOT):
+                if not Path(root).exists():
+                    continue
                 for child in Path(root).glob('*'):
                     shutil.rmtree(child) if child.is_dir() else child.unlink()
         elif SparePart.objects.exists() or Invoice.objects.exists():
