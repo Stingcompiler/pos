@@ -44,9 +44,11 @@ class CookieJWTAuthentication(JWTAuthentication):
 
         try:
             validated_token = self.get_validated_token(raw_token)
-        except (InvalidToken, TokenError):
+            user = self.get_user(validated_token)
+        except (InvalidToken, TokenError, exceptions.AuthenticationFailed):
+            # كوكي لمستخدم حُذف أو عُطّل (أو قاعدة أُعيدت من نسخة) = زائر مجهول، لا 401
+            # على كل طلب حتى للصفحات العامة. الواجهات المحمية ترفضه بصلاحياتها.
             return None
 
-        user = self.get_user(validated_token)
         enforce_csrf(request)
         return user, validated_token

@@ -730,8 +730,17 @@ PUBLIC_PARTS_QUERYSET = SparePart.objects.select_related('category').prefetch_re
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def public_featured_parts(request):
-    """Fetch featured spare parts with fully resolved Category and CarModels."""
-    parts = PUBLIC_PARTS_QUERYSET.filter(is_featured=True)[:60]
+    """
+    القطع المميزة للصفحة الرئيسية (عيّنة: ?limit=، الافتراضي 12 والحد 60).
+
+    كانت تعيد 60 قطعة بسياراتها المتوافقة في كل زيارة للمتجر؛ الكتالوج الكامل
+    مقسّم إلى صفحات في public/parts/.
+    """
+    try:
+        limit = min(max(int(request.query_params.get('limit', 12)), 1), 60)
+    except ValueError:
+        limit = 12
+    parts = PUBLIC_PARTS_QUERYSET.filter(is_featured=True).order_by('-updated_at', '-pk')[:limit]
     serializer = PublicSparePartSerializer(parts, many=True, context={'request': request})
     return Response(serializer.data)
 
@@ -822,6 +831,7 @@ def public_settings(request):
             context={'request': request},
         ).data,
         # نسخة العرض فقط: حسابات التجربة المنشورة أصلاً في صفحة الدخول.
+        'demo_mode': settings.DEMO_MODE,
         'demo_accounts': demo_accounts() if settings.DEMO_MODE else [],
     })
 

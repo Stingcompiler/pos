@@ -28,8 +28,7 @@ export default defineConfig([
         {
           // ^[A-Z_] للمكوّنات التي تُستخدَم داخل JSX فقط، لأن ESLint الأساسي
           // لا يعدّ وسوم JSX مراجع للمتغيّرات (لهذا يُضاف eslint-plugin-react).
-          // و ^motion$ لأنها تُستخدَم حصراً كـ <motion.div> في صفحة الهبوط.
-          varsIgnorePattern: '^[A-Z_]|^motion$',
+          varsIgnorePattern: '^[A-Z_]',
         },
       ],
       // السماح بتصدير ثوابت (كائنات السياق) بجانب المكوّن دون كسر Fast Refresh.

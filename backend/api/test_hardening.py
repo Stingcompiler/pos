@@ -199,12 +199,15 @@ class DemoSeedTests(BaseAPITestCase):
             self.assertFalse(Path(folder, 'media', 'old.jpg').exists())
             self.assertGreater(Invoice.objects.count(), 20)
             self.assertEqual(PublicOrder.objects.count(), 2)
-            accounts = APIClient().get('/api/public/settings/').data['demo_accounts']
+            public = APIClient().get('/api/public/settings/').data
+            self.assertTrue(public['demo_mode'])
+            accounts = public['demo_accounts']
             self.assertEqual([a['username'] for a in accounts], ['demo', 'cashier'])
             login = APIClient().post('/api/auth/login/', {'username': 'demo', 'password': accounts[0]['password']},
                                      format='json')
             self.assertEqual(login.status_code, 200)
-        self.assertEqual(APIClient().get('/api/public/settings/').data['demo_accounts'], [])
+        public = APIClient().get('/api/public/settings/').data
+        self.assertEqual((public['demo_mode'], public['demo_accounts']), (False, []))
 
 
 class StaticHeadersTests(BaseAPITestCase):
@@ -215,3 +218,28 @@ class StaticHeadersTests(BaseAPITestCase):
         headers = {}
         settings.WHITENOISE_ADD_HEADERS_FUNCTION(headers, '/x/sw.js', '/static/sw.js')
         self.assertEqual(headers['Service-Worker-Allowed'], '/')
+
+
+class StaleCookieTests(BaseAPITestCase):
+
+    def test_cookie_of_deleted_user_is_treated_as_anonymous(self):
+        client, _ = self.login_client('emp1')
+        self.employee.delete()
+        # كان كل طلب يرجع 401 حتى الصفحات العامة، فيعلق الزائر في صفحة الدخول.
+        self.assertEqual(client.get('/api/public/settings/').status_code, 200)
+        self.assertEqual(client.get('/api/auth/me/').status_code, 401)
+
+
+class FeaturedPartsLimitTests(BaseAPITestCase):
+
+    def test_store_home_gets_a_sample_not_the_catalogue(self):
+        from rest_framework.test import APIClient
+        for index in range(15):
+            SparePart.objects.create(
+                name=f'قطعة {index}', part_number=f'FT-{index}', category=self.category,
+                purchase_price=Decimal('1'), selling_price=Decimal('2'), is_featured=True,
+            )
+        client = APIClient()
+        self.assertEqual(len(client.get('/api/public/featured-parts/').data), 12)
+        self.assertEqual(len(client.get('/api/public/featured-parts/', {'limit': 4}).data), 4)
+        self.assertEqual(len(client.get('/api/public/featured-parts/', {'limit': 'x'}).data), 12)

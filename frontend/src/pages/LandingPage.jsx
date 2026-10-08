@@ -21,8 +21,8 @@ const CONTACT_ICONS = {
   Twitter: AtSign,
   Instagram: Camera,
 };
-import { motion } from 'framer-motion';
 import api from '../api/axios';
+import { getPublicSettings } from '../utils/publicSettings';
 import { mediaUrl } from '../api/media';
 import { useCart } from '../context/useCart';
 import CheckoutModal from '../components/shop/CheckoutModal';
@@ -30,6 +30,20 @@ import BrandMark from '../components/BrandMark';
 
 // روابط الصور تُبنى مركزياً من مساعد الميديا الموحّد (بدون أي نطاق مكتوب).
 const getImageUrl = mediaUrl;
+
+// الصفحة الرئيسية تعرض عيّنة؛ الكتالوج الكامل مقسّم إلى صفحات في /shop.
+const PREVIEW_COUNT = 8;
+const FEATURED_LIMIT = 12;
+
+function CardSkeletons({ tall = false }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" aria-hidden="true">
+      {Array.from({ length: 4 }, (_, index) => (
+        <div key={index} className={`rounded-2xl bg-gray-200/70 animate-pulse ${tall ? 'h-80' : 'h-52'}`} />
+      ))}
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -53,6 +67,8 @@ export default function LandingPage() {
   const [carModels, setCarModels] = useState([]);
   const [featuredParts, setFeaturedParts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [showAllCars, setShowAllCars] = useState(false);
 
   // ──── Mobile Menu State ────
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -64,35 +80,25 @@ export default function LandingPage() {
   const [formError, setFormError] = useState('');
 
   // ──── Fetch Branding & Featured Products ────
-  const fetchData = async () => {
-    try {
-      // Fetch settings & contact methods & lists
-      const settingsRes = await api.get('public/settings/');
-      if (settingsRes.data.settings) {
-        setSettings(settingsRes.data.settings);
-      }
-      if (settingsRes.data.contact_methods) {
-        setContacts(settingsRes.data.contact_methods);
-      }
-      if (settingsRes.data.categories) {
-        setCategories(settingsRes.data.categories);
-      }
-      if (settingsRes.data.car_models) {
-        setCarModels(settingsRes.data.car_models);
-      }
-
-      // Fetch featured products
-      const partsRes = await api.get('public/featured-parts/');
-      setFeaturedParts(partsRes.data);
-    } catch (err) {
-      console.error('Error fetching public landing data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // الطلبان معاً لا بالتتابع، والصفحة تُعرض فوراً بأقسام مؤقتة حتى تصل البيانات.
   useEffect(() => {
-    fetchData();
+    let active = true;
+    Promise.allSettled([
+      getPublicSettings(),
+      api.get('public/featured-parts/', { params: { limit: FEATURED_LIMIT } }),
+    ]).then(([settingsResult, partsResult]) => {
+      if (!active) return;
+      if (settingsResult.status === 'fulfilled') {
+        const data = settingsResult.value;
+        if (data.settings) setSettings(data.settings);
+        setContacts(data.contact_methods || []);
+        setCategories(data.categories || []);
+        setCarModels(data.car_models || []);
+      }
+      if (partsResult.status === 'fulfilled') setFeaturedParts(partsResult.value.data);
+      setLoading(false);
+    });
+    return () => { active = false; };
   }, []);
 
   // ──── Form Submission ────
@@ -129,14 +135,8 @@ export default function LandingPage() {
     return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val) + ' ج.س';
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-surface-950">
-        <Icons.Loader2 className="w-10 h-10 text-primary-500 animate-spin mb-4" />
-        <p className="text-surface-400 text-sm font-semibold">جاري تحميل المعرض المميز...</p>
-      </div>
-    );
-  }
+  const visibleCategories = showAllCategories ? categories : categories.slice(0, PREVIEW_COUNT);
+  const visibleCars = showAllCars ? carModels : carModels.slice(0, PREVIEW_COUNT);
 
   return (
     <div className="min-h-screen bg-gray-50 text-slate-800 relative overflow-hidden select-none font-sans" dir="rtl">
@@ -214,11 +214,8 @@ export default function LandingPage() {
       {/* ──── SECTION 1: HERO SECTION ──── */}
       <section id="hero" className="relative w-full z-10 py-12 md:py-24 px-4 md:px-8 bg-gradient-to-b from-dal-dark to-slate-900 text-white border-b border-slate-950/20">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex-1 flex flex-col items-center md:items-start text-center md:text-right space-y-6"
+          <div
+            className="animate-fade-in flex-1 flex flex-col items-center md:items-start text-center md:text-right space-y-6"
           >
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-dal-sky/10 border border-dal-sky/25 text-dal-sky text-xs font-semibold animate-pulse">
               <Icons.CheckCircle className="w-3.5 h-3.5" />
@@ -247,14 +244,11 @@ export default function LandingPage() {
                 تواصل معنا
               </a>
             </div>
-          </motion.div>
+          </div>
 
           {/* Large decorative display for desktop (RTL brand identity layout) */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex-1 hidden md:flex items-center justify-center relative"
+          <div
+            className="animate-scale-in flex-1 hidden md:flex items-center justify-center relative"
           >
             <div className="w-72 h-72 rounded-full bg-dal-sky/10 absolute blur-3xl animate-pulse-soft" />
             <div className="glass-card p-8 border border-white/5 relative z-10 flex flex-col items-center gap-4 text-center max-w-sm">
@@ -266,7 +260,7 @@ export default function LandingPage() {
                 معتمدة ومضمونة 100%
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -278,23 +272,21 @@ export default function LandingPage() {
             <p className="text-xs md:text-sm text-gray-500">تصفح الفئات المختلفة لقطع غيار السيارات لتصل إلى ما تريد</p>
           </div>
 
-          {categories.length === 0 ? (
+          {loading ? (
+            <CardSkeletons />
+          ) : categories.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-xs">لا توجد أقسام متوفرة حالياً</div>
           ) : (
             <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-6 md:pb-0 md:overflow-visible">
-              {categories.map((cat) => (
-                <motion.div
+              {visibleCategories.map((cat) => (
+                <div
                   key={cat.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4 }}
                   className="bg-white border border-gray-100 shadow-md rounded-2xl overflow-hidden group hover:border-dal-sky/40 transition-all duration-300 cursor-pointer flex flex-col min-w-full md:min-w-0 snap-center"
                   onClick={() => navigate(`/shop?category_id=${cat.id}`)}
                 >
                   <div className="h-32 md:h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative overflow-hidden border-b border-gray-100">
                     {cat.image ? (
-                      <img src={getImageUrl(cat.image)} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={getImageUrl(cat.image)} alt={cat.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <Icons.FolderOpen className="w-10 h-10 text-dal-sky opacity-60 group-hover:scale-110 transition-transform duration-300" />
                     )}
@@ -308,8 +300,19 @@ export default function LandingPage() {
                     </div>
                     <span className="text-[10px] font-semibold text-dal-sky block mt-2">{cat.parts_count || 0} منتج متوفر</span>
                   </div>
-                </motion.div>
+                </div>
               ))}
+            </div>
+          )}
+          {!loading && categories.length > PREVIEW_COUNT && (
+            <div className="text-center mt-8">
+              <button
+                type="button"
+                onClick={() => setShowAllCategories((value) => !value)}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-dal-dark text-xs md:text-sm font-bold hover:border-dal-sky hover:text-dal-sky transition-colors cursor-pointer"
+              >
+                {showAllCategories ? 'عرض أقل' : `عرض كل الأقسام (${categories.length})`}
+              </button>
             </div>
           )}
         </div>
@@ -323,24 +326,22 @@ export default function LandingPage() {
             <p className="text-xs md:text-sm text-gray-500">ندعم مجموعة واسعة من السيارات بمختلف الموديلات والسنوات</p>
           </div>
 
-          {carModels.length === 0 ? (
+          {loading ? (
+            <CardSkeletons />
+          ) : carModels.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-xs">لا توجد موديلات سيارات حالياً</div>
           ) : (
             /* Mobile: horizontal scroll | Desktop: responsive grid */
             <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-6 md:pb-0 md:overflow-visible">
-              {carModels.map((car) => (
-                <motion.div
+              {visibleCars.map((car) => (
+                <div
                   key={car.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4 }}
                   className="bg-white border border-gray-100 shadow-md rounded-2xl overflow-hidden flex flex-col group hover:border-dal-sky/40 transition-all duration-300 cursor-pointer min-w-full md:min-w-0 snap-center"
                   onClick={() => navigate(`/shop?car_model_id=${car.id}`)}
                 >
                   <div className="h-32 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative overflow-hidden border-b border-gray-100">
                     {car.image ? (
-                      <img src={getImageUrl(car.image)} alt={car.brand} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={getImageUrl(car.image)} alt={car.brand} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <Icons.Car className="w-12 h-12 text-dal-sky opacity-60 group-hover:scale-110 transition-transform duration-300" />
                     )}
@@ -354,8 +355,19 @@ export default function LandingPage() {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
+            </div>
+          )}
+          {!loading && carModels.length > PREVIEW_COUNT && (
+            <div className="text-center mt-8">
+              <button
+                type="button"
+                onClick={() => setShowAllCars((value) => !value)}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-dal-dark text-xs md:text-sm font-bold hover:border-dal-sky hover:text-dal-sky transition-colors cursor-pointer"
+              >
+                {showAllCars ? 'عرض أقل' : `عرض كل السيارات (${carModels.length})`}
+              </button>
             </div>
           )}
         </div>
@@ -369,7 +381,9 @@ export default function LandingPage() {
             <p className="text-xs md:text-sm text-gray-500">مجموعة من أفضل قطع الغيار المضمونة المتوفرة حالياً</p>
           </div>
 
-          {featuredParts.length === 0 ? (
+          {loading ? (
+            <CardSkeletons tall />
+          ) : featuredParts.length === 0 ? (
             <div className="bg-white border border-gray-100 shadow-md rounded-2xl py-20 flex flex-col items-center justify-center text-center">
               <Icons.Layers className="w-12 h-12 text-gray-400 opacity-50 mb-3" />
               <h4 className="text-base font-bold text-dal-dark">لا توجد منتجات مميزة معروضة حالياً</h4>
@@ -378,18 +392,14 @@ export default function LandingPage() {
           ) : (
             <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-8 md:pb-0 md:overflow-visible">
               {featuredParts.map((part) => (
-                <motion.div
+                <div
                   key={part.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4 }}
                   className="bg-white border border-gray-100 shadow-md rounded-2xl flex flex-col group overflow-hidden hover:border-dal-sky/40 transition-all duration-300 min-w-full md:min-w-0 snap-center"
                 >
                   {/* Part Image display */}
                   <div className="h-48 w-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative border-b border-gray-100 overflow-hidden">
                     {part.image ? (
-                      <img src={getImageUrl(part.image)} alt={part.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={getImageUrl(part.image)} alt={part.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <Icons.Wrench className="w-12 h-12 text-dal-sky opacity-60 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
                     )}
@@ -466,8 +476,20 @@ export default function LandingPage() {
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
+            </div>
+          )}
+          {!loading && featuredParts.length > 0 && (
+            <div className="text-center mt-10">
+              <a
+                href="/shop"
+                onClick={(e) => { e.preventDefault(); navigate('/shop'); }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-dal-dark text-white text-xs md:text-sm font-bold hover:bg-slate-800 transition-colors"
+              >
+                <Icons.Package className="w-4 h-4" />
+                تصفح كل القطع
+              </a>
             </div>
           )}
         </div>

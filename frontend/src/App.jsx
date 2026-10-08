@@ -5,6 +5,7 @@ import { useAuth } from './context/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import PWAInstallBadge from './components/PWAInstallBadge';
+import HomeRoute from './components/HomeRoute';
 import { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -56,7 +57,8 @@ function App() {
           <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public customer landing page */}
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/store" element={<LandingPage />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/shop" element={<FilterPage />} />
             <Route path="/inventory" element={<FilterPage />} />

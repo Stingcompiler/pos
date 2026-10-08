@@ -100,7 +100,7 @@ const AUTH_ENDPOINTS = ['auth/login/', 'auth/refresh/', 'auth/logout/'];
  * صفحات الزوار: المتجر والمنتج والصفحة الرئيسية. فحص الجلسة يفشل فيها
  * طبيعياً (لا جلسة لزائر)، فلا يجوز أن يحوّل الزائر إلى دخول الموظفين.
  */
-const PUBLIC_PATHS = [/^\/$/, /^\/login\/?$/, /^\/shop(\/|$)/, /^\/inventory(\/|$)/, /^\/product\//];
+const PUBLIC_PATHS = [/^\/$/, /^\/store\/?$/, /^\/login\/?$/, /^\/shop(\/|$)/, /^\/inventory(\/|$)/, /^\/product\//];
 
 export function isPublicPath(pathname) {
   return PUBLIC_PATHS.some((pattern) => pattern.test(pathname));

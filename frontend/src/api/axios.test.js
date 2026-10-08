@@ -72,10 +72,10 @@ describe('حماية CSRF في عميل الـ API', () => {
 describe('صفحات الزوار لا تحوّل إلى دخول الموظفين', () => {
   it('يميّز صفحات المتجر العامة عن صفحات النظام', async () => {
     const { isPublicPath } = await import('./axios');
-    for (const path of ['/', '/shop', '/shop/', '/inventory', '/product/12', '/login']) {
+    for (const path of ['/', '/store', '/shop', '/shop/', '/inventory', '/product/12', '/login']) {
       expect(isPublicPath(path), path).toBe(true);
     }
-    for (const path of ['/pos', '/dashboard', '/invoices', '/shopping-admin', '/products']) {
+    for (const path of ['/pos', '/dashboard', '/invoices', '/shopping-admin', '/products', '/stores']) {
       expect(isPublicPath(path), path).toBe(false);
     }
   });
