@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { Bell, ShoppingCart, Mail, Check, Inbox } from 'lucide-react';
+import { DATE_LOCALE } from '../utils/dates';
 
 // ─── نداءات الـ API في نطاق الوحدة ───
 // تُعيد البيانات فقط بلا setState، حتى تبقى كتابة الحالة في مكوّن React وحده.
@@ -169,7 +170,7 @@ export default function NotificationBadge() {
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-surface-500">
-                        {new Date(notif.created_at).toLocaleString('ar-SA', {
+                        {new Date(notif.created_at).toLocaleString(DATE_LOCALE, {
                           hour: '2-digit',
                           minute: '2-digit',
                           day: 'numeric',

@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.db import IntegrityError
 from django.db.models import (
     Sum,
     Count,
@@ -38,6 +39,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 
 from . import importers, reports, services
 from .authentication import enforce_csrf
+from .params import parse_day, parse_id, parse_quantity
 from .search import compact, search_parts
 from .models import (
     Category,
@@ -387,23 +389,57 @@ class CarModelViewSet(viewsets.ModelViewSet):
     filterset_fields = ['brand']
 
 
+class AmbiguousPartCode(Exception):
+    """رمز يطابق أكثر من قطعة: رقم أصلي (OEM) مشترك بين الأصلي والتجاري مثلاً."""
+
+    def __init__(self, code, parts):
+        self.code = code
+        self.parts = parts
+        names = '، '.join(f'{part.name} ({part.part_number})' for part in parts[:5])
+        super().__init__(f'الرمز «{code}» يطابق {len(parts)} قطع: {names}. اختر القطعة الصحيحة من البحث.')
+
+    def response(self, context):
+        return Response(
+            {'detail': str(self),
+             'candidates': SparePartListSerializer(self.parts, many=True, context=context).data},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+
+def _only_match(code, parts):
+    if len(parts) > 1:
+        raise AmbiguousPartCode(code, parts)
+    return parts[0]
+
+
 def find_part_by_code(code: str):
     """
-    قطعة بمطابقة تامة لرمز ممسوح أو مكتوب: الباركود ثم رقم القطعة ثم الرقم
-    الأصلي (بعد إزالة المسافات والشرطات). قارئ الباركود يكتب الرمز ثم Enter.
+    قطعة بمطابقة تامة لرمز ممسوح أو مكتوب، بالأولوية: الباركود، ثم رقم القطعة،
+    ثم الرقم بلا مسافات أو شرطات، ثم الرقم الأصلي. قارئ الباركود يكتب الرمز ثم Enter.
+
+    أول مستوى فيه مطابقة يحسم. أكثر من قطعة فيه يرفع AmbiguousPartCode بدل
+    اختيار إحداها، فلا يُباع أو يُعدّ صنف غير الممسوح.
     """
     code = (code or '').strip()
     if not code:
         return None
-    part = SparePart.objects.filter(Q(barcode=code) | Q(part_number__iexact=code)).first()
+    part = SparePart.objects.filter(barcode=code).first()
     if part is not None:
         return part
+    same_number = list(SparePart.objects.filter(part_number__iexact=code).order_by('pk'))
+    if same_number:
+        return _only_match(code, same_number)
     key = compact(code)
     if not key:
         return None
-    for candidate in search_parts(SparePart.objects.all(), code)[:20]:
-        if key in (compact(candidate.part_number), compact(candidate.oem_number), compact(candidate.barcode)):
-            return candidate
+    candidates = list(search_parts(SparePart.objects.all(), code).order_by('pk')[:200])
+    for fields in (('part_number', 'barcode'), ('oem_number',)):
+        matches = [
+            candidate for candidate in candidates
+            if key in (compact(getattr(candidate, field)) for field in fields)
+        ]
+        if matches:
+            return _only_match(code, matches)
     return None
 
 
@@ -445,7 +481,11 @@ class SparePartViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
             return Response([])
 
         base = SparePart.objects.select_related('category', 'supplier').prefetch_related('compatible_cars')
-        exact = find_part_by_code(query)
+        try:
+            exact = find_part_by_code(query)
+        except AmbiguousPartCode:
+            # القطع المطابقة كلها في نتائج البحث؛ يختار الكاشير منها.
+            exact = None
         parts = list(search_parts(base.filter(stock_quantity__gt=0), query)[:20])
         if exact is not None and exact.stock_quantity > 0:
             parts = [exact] + [part for part in parts if part.pk != exact.pk][:19]
@@ -456,7 +496,10 @@ class SparePartViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='lookup')
     def lookup(self, request):
         """قطعة بمطابقة تامة لرمز ممسوح (للجرد وقارئ الباركود)."""
-        part = find_part_by_code(request.query_params.get('code', ''))
+        try:
+            part = find_part_by_code(request.query_params.get('code', ''))
+        except AmbiguousPartCode as exc:
+            return exc.response(self.get_serializer_context())
         if part is None:
             return Response({'detail': 'لا توجد قطعة بهذا الرمز.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(SparePartListSerializer(part, context=self.get_serializer_context()).data)
@@ -486,11 +529,12 @@ class SparePartViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
                 {'detail': 'يجب تمرير stock_quantity.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        new_quantity = parse_quantity(new_quantity, 'stock_quantity')
 
         reason = (request.data.get('reason') or '').strip()
         try:
             part = services.adjust_stock(
-                part.pk, int(new_quantity), user=request.user,
+                part.pk, new_quantity, user=request.user,
                 reference=f'تسوية يدوية: {reason}'[:100] if reason else 'تسوية يدوية',
             )
         except (services.InventoryError, ValueError) as exc:
@@ -529,7 +573,15 @@ class SparePartViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
                  'detail': 'صحّح الأخطاء في الملف ثم أعد رفعه؛ لم يُحفظ أي صف.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        importers.apply_import(plan, user=request.user)
+        try:
+            importers.apply_import(plan, user=request.user)
+        except IntegrityError:
+            # قطعة أو باركود أُضيف من شاشة أخرى بين المعاينة والتطبيق.
+            return Response(
+                {**summary, 'applied': False,
+                 'detail': 'تغيّرت القطع أثناء الاستيراد (رقم أو باركود أُضيف للتو). أعد رفع الملف للمعاينة؛ لم يُحفظ أي صف.'},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response({**summary, 'applied': True})
 
     @action(detail=False, methods=['get'], url_path='export')
@@ -618,13 +670,13 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         params = self.request.query_params
         if params.get('customer'):
-            qs = qs.filter(customer_id=params['customer'])
+            qs = qs.filter(customer_id=parse_id(params['customer'], 'customer'))
         if params.get('payment_method'):
             qs = qs.filter(payment_method=params['payment_method'])
         if params.get('date_from'):
-            qs = qs.filter(created_at__date__gte=params['date_from'])
+            qs = qs.filter(created_at__date__gte=parse_day(params['date_from'], field='date_from'))
         if params.get('date_to'):
-            qs = qs.filter(created_at__date__lte=params['date_to'])
+            qs = qs.filter(created_at__date__lte=parse_day(params['date_to'], field='date_to'))
         if params.get('search'):
             term = params['search'].strip().lstrip('#')
             condition = Q(customer__name__icontains=term) | Q(customer__phone__icontains=term) | Q(
@@ -708,11 +760,11 @@ def public_parts_list(request):
 
     category_id = request.query_params.get('category_id')
     if category_id:
-        qs = qs.filter(category_id=category_id)
+        qs = qs.filter(category_id=parse_id(category_id, 'category_id'))
 
     car_model_id = request.query_params.get('car_model_id')
     if car_model_id:
-        qs = qs.filter(compatible_cars__id=car_model_id).distinct()
+        qs = qs.filter(compatible_cars__id=parse_id(car_model_id, 'car_model_id')).distinct()
 
     search = request.query_params.get('search')
     if search:

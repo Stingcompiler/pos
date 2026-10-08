@@ -19,19 +19,22 @@ import hashlib
 import io
 import json
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from django.apps import apps
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from django.db.migrations.recorder import MigrationRecorder
 from django.utils import timezone
 
 # جداول تُعاد بنيتها تلقائياً بعد الترحيل، أو مؤقتة لا قيمة لاستعادتها.
+# token_blacklist يُنسخ: بدونه تعود جلسات خرج أصحابها (أو استُبدلت رموزها)
+# صالحةً بعد الاستعادة حتى تنتهي مدتها.
 EXCLUDED = [
     'contenttypes', 'auth.permission', 'sessions', 'admin.logentry',
-    'token_blacklist',
 ]
 BACKUP_PREFIX = 'backup-'
 
@@ -51,6 +54,43 @@ def get_fernet():
         raise CommandError(
             'DJANGO_BACKUP_KEY غير صالح. ولّد مفتاحاً بالأمر: python manage.py backup_data --generate-key'
         ) from exc
+
+
+@contextmanager
+def consistent_snapshot():
+    """
+    كل قراءات النسخة من لقطة واحدة للقاعدة.
+
+    dumpdata يقرأ الجداول واحداً بعد الآخر؛ بيع يُسجَّل بينها كان يُنتج نسخة
+    فيها بنود فاتورة بلا فاتورتها (فتفشل الاستعادة) وأعداداً في البيان لا
+    تطابق البيانات. اللقطة لا تحجز الكتابة، فيستمر البيع أثناء النسخ.
+    """
+    connection = connections[DEFAULT_DB_ALIAS]
+    if connection.in_atomic_block:
+        # داخل معاملة قائمة (الاختبارات): لقطتها هي ما يُقرأ.
+        yield
+        return
+
+    if connection.vendor == 'postgresql':
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+            yield
+    elif connection.vendor == 'sqlite':
+        # BEGIN عادي لا IMMEDIATE (إعداد القاعدة): معاملة قراءة في وضع WAL
+        # تثبّت لقطتها من أول قراءة دون أن تمنع الكاشير من الكتابة.
+        connection.ensure_connection()
+        mode = connection.transaction_mode
+        connection.transaction_mode = None
+        try:
+            with transaction.atomic():
+                connection.transaction_mode = mode
+                yield
+        finally:
+            connection.transaction_mode = mode
+    else:
+        with transaction.atomic():
+            yield
 
 
 def model_counts() -> dict:
@@ -82,14 +122,16 @@ class Command(BaseCommand):
         fernet = get_fernet()
 
         data = io.StringIO()
-        call_command('dumpdata', exclude=EXCLUDED, natural_foreign=True, indent=None, stdout=data)
+        with consistent_snapshot():
+            call_command('dumpdata', exclude=EXCLUDED, natural_foreign=True, indent=None, stdout=data)
+            latest = MigrationRecorder.Migration.objects.filter(app='api').order_by('-id').first()
+            counts = model_counts()
         data_bytes = data.getvalue().encode('utf-8')
 
-        latest = MigrationRecorder.Migration.objects.filter(app='api').order_by('-id').first()
         manifest = {
             'created_at': timezone.now().isoformat(),
             'api_migration': latest.name if latest else None,
-            'counts': model_counts(),
+            'counts': counts,
             'data_sha256': hashlib.sha256(data_bytes).hexdigest(),
             'encrypted': fernet is not None,
         }

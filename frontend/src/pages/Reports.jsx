@@ -9,6 +9,7 @@ import {
   Calendar, Wallet, RotateCcw, HandCoins, Receipt, PiggyBank, Percent,
   AlertTriangle, AlertCircle, Trophy, Scale, RefreshCw,
 } from 'lucide-react';
+import { DATE_LOCALE } from '../utils/dates';
 
 const PERIODS = [
   { id: 'daily', tab: 'يومي', label: 'يومي (آخر 30 يوم)' },
@@ -23,14 +24,13 @@ const fmtNum = (v) => new Intl.NumberFormat('ar-SA').format(Number(v) || 0);
 const fmtPercent = (v) => `${new Intl.NumberFormat('ar-SA', { maximumFractionDigits: 1 }).format(Number(v) || 0)}٪`;
 const shareOf = (part, total) => (total > 0 ? Math.min(100, (Number(part) / total) * 100) : 0);
 
-// تواريخ ميلادية صراحةً: ar-SA في بعض المتصفحات يعرض التقويم الهجري.
 const bucketFormats = {
-  daily: new Intl.DateTimeFormat('ar-SD', { weekday: 'short', day: 'numeric', month: 'short' }),
-  weekly: new Intl.DateTimeFormat('ar-SD', { day: 'numeric', month: 'short', year: 'numeric' }),
-  monthly: new Intl.DateTimeFormat('ar-SD', { month: 'long', year: 'numeric' }),
-  yearly: new Intl.DateTimeFormat('ar-SD', { year: 'numeric' }),
+  daily: new Intl.DateTimeFormat(DATE_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }),
+  weekly: new Intl.DateTimeFormat(DATE_LOCALE, { day: 'numeric', month: 'short', year: 'numeric' }),
+  monthly: new Intl.DateTimeFormat(DATE_LOCALE, { month: 'long', year: 'numeric' }),
+  yearly: new Intl.DateTimeFormat(DATE_LOCALE, { year: 'numeric' }),
 };
-const printedAtFormat = new Intl.DateTimeFormat('ar-SD', {
+const printedAtFormat = new Intl.DateTimeFormat(DATE_LOCALE, {
   year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
 });
 

@@ -1,26 +1,23 @@
 /**
- * تنسيق التواريخ لشاشات الصندوق والجرد.
- *
- * نحدد التقويم الميلادي صراحةً: بعض المتصفحات تعرض ar-SA بالتقويم الهجري،
- * فيظهر تاريخ الإقفال مختلفاً عن منتقي التاريخ (الميلادي).
+ * تنسيق التواريخ لشاشات الصندوق والجرد (ميلادي صراحةً، انظر utils/dates).
  */
 
-const LOCALE = 'ar-SA';
+import { DATE_LOCALE } from '../../utils/dates';
 
-const dayFormatter = new Intl.DateTimeFormat(LOCALE, {
-  calendar: 'gregory', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+const dayFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
 });
 
-const shortDayFormatter = new Intl.DateTimeFormat(LOCALE, {
-  calendar: 'gregory', year: 'numeric', month: '2-digit', day: '2-digit',
+const shortDayFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+  year: 'numeric', month: '2-digit', day: '2-digit',
 });
 
-const dateTimeFormatter = new Intl.DateTimeFormat(LOCALE, {
-  calendar: 'gregory', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+const dateTimeFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
 });
 
-const timeFormatter = new Intl.DateTimeFormat(LOCALE, {
-  calendar: 'gregory', hour: '2-digit', minute: '2-digit',
+const timeFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+  hour: '2-digit', minute: '2-digit',
 });
 
 /** 'YYYY-MM-DD' → كائن تاريخ محلي (new Date('2026-10-07') يُقرأ UTC فقد يزيح اليوم). */

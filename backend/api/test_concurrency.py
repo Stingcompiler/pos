@@ -5,13 +5,20 @@
 تشغيلها: ضبط DB_NAME على قاعدة PostgreSQL للاختبار ثم `manage.py test api`.
 """
 
+import io
+import json
+import tempfile
+import zipfile
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
+from pathlib import Path
 from threading import Barrier
-from unittest import skipUnless
+from unittest import mock, skipUnless
 
+from django.core.management import call_command
 from django.db import close_old_connections, connection, connections
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 
 from api import services
 from api.models import Category, CustomUser, Invoice, SparePart, StockMovement
@@ -98,3 +105,46 @@ class ConcurrentSaleTests(TransactionTestCase):
         self.assertEqual(self.part.stock_quantity, 4)
         self.assertEqual(Invoice.objects.count(), 1)
         self.assertEqual(sum(StockMovement.objects.values_list('change', flat=True)), -6)
+
+
+@skipUnless(connection.vendor == 'postgresql', 'يحتاج PostgreSQL لاتصالات متوازية حقيقية')
+class BackupDuringSaleTests(TransactionTestCase):
+    """بيع يُسجَّل أثناء النسخ لا يجعل النسخة متناقضة (بيان لا يطابق بياناتها)."""
+
+    def test_sale_between_dump_and_counts_is_left_out_consistently(self):
+        from api.management.commands import backup_data
+
+        cashier = CustomUser.objects.create_user(username='backup_cashier', password='StrongPass123')
+        part = SparePart.objects.create(
+            name='بوجي', part_number='SP-1', category=Category.objects.create(name='كهرباء'),
+            purchase_price=Decimal('5.00'), selling_price=Decimal('9.00'), stock_quantity=10,
+        )
+
+        def sell_from_another_connection():
+            close_old_connections()
+            try:
+                services.create_invoice(cashier=cashier, items=[{'spare_part': part.pk, 'quantity': 2}])
+            finally:
+                connections['default'].close()
+
+        original_counts = backup_data.model_counts
+
+        def counts_after_a_sale():
+            # البيع يقع بعد قراءة dumpdata وقبل عدّ السجلات للبيان.
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                pool.submit(sell_from_another_connection).result()
+            return original_counts()
+
+        with tempfile.TemporaryDirectory() as folder, \
+                override_settings(MEDIA_ROOT=f'{folder}/media', PRIVATE_MEDIA_ROOT=f'{folder}/private'), \
+                mock.patch.object(backup_data, 'model_counts', counts_after_a_sale):
+            call_command('backup_data', output_dir=folder, stdout=io.StringIO())
+            with zipfile.ZipFile(next(Path(folder).glob('backup-*.zip'))) as bundle:
+                manifest = json.loads(bundle.read('manifest.json'))
+                records = json.loads(bundle.read('data.json'))
+
+        self.assertEqual(Invoice.objects.count(), 1)
+        dumped = Counter(record['model'] for record in records)
+        for label, expected in manifest['counts'].items():
+            self.assertEqual(dumped.get(label.lower(), 0), expected, label)
+        self.assertEqual(manifest['counts']['api.Invoice'], 0)

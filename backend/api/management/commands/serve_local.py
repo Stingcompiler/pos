@@ -5,7 +5,8 @@
 
 - يخدم الواجهة والـ API عبر waitress (يعمل على ويندوز ولينكس وماك).
 - يطبع عناوين الجهاز على الشبكة لفتحها من الهواتف والأجهزة الأخرى.
-- ينشئ نسخة احتياطية عند البدء ثم كل --backup-hours ساعة (0 = بلا نسخ).
+- ينشئ نسخة احتياطية عند البدء ثم كل --backup-hours ساعة (0 = بلا نسخ)، ويحذف
+  قبلها رموز الدخول المنتهية.
 
 يتطلب: DJANGO_LOCAL_NETWORK=True و DJANGO_DEBUG=False، وبناء الواجهة
 (npm run build) ثم python manage.py collectstatic.
@@ -71,6 +72,8 @@ class Command(BaseCommand):
     def _schedule_backups(self, interval_seconds: float) -> None:
         def run():
             try:
+                # الرموز المنتهية لا حاجة لها؛ حذفها يُبقي جدول الجلسات والنسخة صغيرين.
+                call_command('flushexpiredtokens')
                 call_command('backup_data')
             except Exception as exc:  # النسخ لا يوقف البيع؛ يُطبع الفشل ويُعاد لاحقاً.
                 self.stderr.write(self.style.ERROR(f'فشل النسخ الاحتياطي: {exc}'))

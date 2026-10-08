@@ -18,10 +18,11 @@ import {
   Package, Clock, Loader2, AlertCircle, AlertTriangle,
   Edit2, CheckCircle2, ChevronLeft, Undo2, Search,
 } from 'lucide-react';
+import { DATE_LOCALE } from '../utils/dates';
 
 const PRIVILEGED_ROLES = ['manager', 'supervisor'];
 
-const dealDateFormat = new Intl.DateTimeFormat('ar-SD', {
+const dealDateFormat = new Intl.DateTimeFormat(DATE_LOCALE, {
   year: 'numeric',
   month: 'long',
   day: 'numeric',

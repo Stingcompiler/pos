@@ -18,6 +18,8 @@ from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 from openpyxl import Workbook, load_workbook
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from api import services
 from api.models import (
@@ -455,6 +457,9 @@ class BackupRestoreTests(TransactionTestCase):
             purchase_price=Decimal('50'), selling_price=Decimal('80'), stock_quantity=4,
         )
         services.create_invoice(cashier=user, items=[{'spare_part': part, 'quantity': 1}])
+        # جلسة خرج صاحبها: تبقى مُلغاة بعد الاستعادة.
+        logged_out = RefreshToken.for_user(user)
+        logged_out.blacklist()
 
         with tempfile.TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=folder + '/media'):
             call_command('backup_data', output_dir=folder, stdout=io.StringIO())
@@ -466,6 +471,7 @@ class BackupRestoreTests(TransactionTestCase):
             call_command('restore_data', str(archive), force=True, stdout=io.StringIO())
             self.assertEqual(SparePart.objects.get().stock_quantity, 3)
             self.assertEqual(Invoice.objects.get().payments.count(), 1)
+            self.assertTrue(BlacklistedToken.objects.filter(token__jti=logged_out['jti']).exists())
 
             corrupted = Path(folder) / 'backup-corrupted.zip'
             data = zipfile.ZipFile(archive).read('data.json').replace(b'BAT-70', b'BAT-99')

@@ -1,11 +1,12 @@
 import Barcode from './Barcode';
 import { formatCurrency } from '../utils/currency';
 import { mediaUrl } from '../api/media';
+import { DATE_LOCALE } from '../utils/dates';
 
 const METHOD_LABELS = { cash: 'نقدي', bank: 'تحويل بنكي' };
 
 function formatDate(value) {
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat(DATE_LOCALE, {
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   }).format(new Date(value));
 }

@@ -6,8 +6,6 @@
 """
 
 import mimetypes
-from datetime import date as date_cls
-from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db.models import F, Q
@@ -36,25 +34,8 @@ from .serializers import (
     business_error,
 )
 from .validators import validate_image_upload
-from .views import find_part_by_code
-
-
-def parse_day(value, default=None):
-    """تاريخ من معامل الاستعلام بصيغة YYYY-MM-DD، أو اليوم المحلي."""
-    if not value:
-        return default or timezone.localdate()
-    try:
-        return date_cls.fromisoformat(value)
-    except ValueError:
-        raise ValidationError({'date': 'صيغة التاريخ يجب أن تكون YYYY-MM-DD.'})
-
-
-def parse_amount(value, field) -> Decimal:
-    """مبلغ رقمي من الطلب، أو خطأ 400 باسم الحقل."""
-    try:
-        return Decimal(str(value).strip())
-    except (InvalidOperation, AttributeError):
-        raise ValidationError({field: 'أدخل مبلغاً رقمياً صحيحاً.'})
+from .params import parse_amount, parse_day, parse_id, parse_id_list, parse_quantity
+from .views import AmbiguousPartCode, find_part_by_code
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -106,9 +87,12 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         if params.get('date'):
             start, end = services.day_bounds(parse_day(params['date']))
             qs = qs.filter(created_at__gte=start, created_at__lt=end)
-        for field in ('method', 'kind', 'bank_account', 'invoice', 'customer'):
+        for field in ('method', 'kind'):
             if params.get(field):
                 qs = qs.filter(**{field: params[field]})
+        for field in ('bank_account', 'invoice', 'customer'):
+            if params.get(field):
+                qs = qs.filter(**{field: parse_id(params[field], field)})
         if params.get('verified') in ('0', 'false'):
             qs = qs.filter(verified_at__isnull=True)
         elif params.get('verified') in ('1', 'true'):
@@ -203,9 +187,9 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         if params.get('date'):
             qs = qs.filter(date=parse_day(params['date']))
         if params.get('date_from'):
-            qs = qs.filter(date__gte=parse_day(params['date_from']))
+            qs = qs.filter(date__gte=parse_day(params['date_from'], field='date_from'))
         if params.get('date_to'):
-            qs = qs.filter(date__lte=parse_day(params['date_to']))
+            qs = qs.filter(date__lte=parse_day(params['date_to'], field='date_to'))
         return qs
 
     def _ensure_open(self, day):
@@ -326,6 +310,8 @@ def pricing_view(request):
     source = request.query_params if request.method == 'GET' else request.data
     allow_decrease = str(source.get('allow_decrease', 'true')).lower() not in ('0', 'false')
     part_ids = source.get('part_ids') if request.method == 'POST' else None
+    if part_ids is not None:
+        part_ids = parse_id_list(part_ids, 'part_ids')
     changes = services.reprice_parts(
         user=request.user, apply=request.method == 'POST',
         allow_decrease=allow_decrease, part_ids=part_ids,
@@ -369,18 +355,16 @@ class StockCountViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin,
         count = self._draft()
         part = None
         if request.data.get('spare_part'):
-            part = SparePart.objects.filter(pk=request.data['spare_part']).first()
+            part = SparePart.objects.filter(pk=parse_id(request.data['spare_part'], 'spare_part')).first()
         elif request.data.get('code'):
-            part = find_part_by_code(request.data['code'])
+            try:
+                part = find_part_by_code(request.data['code'])
+            except AmbiguousPartCode as exc:
+                return exc.response(self.get_serializer_context())
         if part is None:
             return Response({'detail': 'لم يُعثر على القطعة.'}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            quantity = int(request.data.get('counted_quantity', 1))
-        except (TypeError, ValueError):
-            return Response({'counted_quantity': 'أدخل عدداً صحيحاً.'}, status=status.HTTP_400_BAD_REQUEST)
-        if quantity < 0:
-            return Response({'counted_quantity': 'الكمية لا تكون سالبة.'}, status=status.HTTP_400_BAD_REQUEST)
+        quantity = parse_quantity(request.data.get('counted_quantity', 1), 'counted_quantity')
 
         # الرصيد لحظة العدّ يُحفظ مع السطر: التطبيق يضيف الفرق عنه فقط.
         line, created = StockCountLine.objects.get_or_create(

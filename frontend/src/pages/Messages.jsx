@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Mail, Calendar, Phone, User, Loader2, AlertCircle, Eye, RefreshCw } from 'lucide-react';
+import { DATE_LOCALE } from '../utils/dates';
 
 export default function Messages() {
   const [messages, setMessages] = useState([]);
@@ -26,7 +27,7 @@ export default function Messages() {
   }, []);
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleString('ar-SA', {
+    return new Date(dateStr).toLocaleString(DATE_LOCALE, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

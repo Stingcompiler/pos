@@ -191,7 +191,10 @@ export default function POS() {
       const { data } = await api.get('spare-parts/lookup/', { params: { code } });
       return { part: data };
     } catch (err) {
-      return err.response?.status === 404 ? { part: null } : { lookupError: err };
+      if (err.response?.status === 404) return { part: null };
+      // 409: الرمز (رقم أصلي غالباً) يطابق أكثر من قطعة؛ لا نختار عن الكاشير.
+      if (err.response?.status === 409) return { part: null, ambiguous: apiErrorMessage(err) };
+      return { lookupError: err };
     } finally {
       lookupCodeRef.current = null;
     }
@@ -209,7 +212,7 @@ export default function POS() {
     setSearching(true);
     setSearchNotice('');
 
-    const { part, lookupError } = await lookupCode(code);
+    const { part, lookupError, ambiguous } = await lookupCode(code);
     const unchanged = searchQueryRef.current.trim() === code;
 
     if (part && part.stock_quantity > 0) {
@@ -228,7 +231,8 @@ export default function POS() {
       return;
     }
     if (part) setSearchNotice(`«${part.name}» غير متوفرة في المخزون حالياً.`);
-    // ليس رمزاً معروفاً: تبقى نتائج البحث العادي للنص نفسه.
+    if (ambiguous) setSearchNotice(ambiguous);
+    // ليس رمزاً معروفاً أو يطابق عدة قطع: تبقى نتائج البحث العادي للنص نفسه.
     runSearch(code);
   };
 

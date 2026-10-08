@@ -5,6 +5,8 @@
  * يفعله الخادم، وأي خطأ تقريب في الواجهة يظهر للكاشير كرفض غير مفهوم.
  */
 
+import { DATE_LOCALE } from '../../utils/dates';
+
 export const PRIVILEGED_ROLES = ['manager', 'supervisor'];
 
 export function isPrivilegedRole(role) {
@@ -222,13 +224,13 @@ export function buildCollectionPayload({ method, amount, note, bank }) {
 
 export function formatDateTime(value) {
   if (!value) return '';
-  return new Intl.DateTimeFormat('ar-SA', {
+  return new Intl.DateTimeFormat(DATE_LOCALE, {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   }).format(new Date(value));
 }
 
 export function formatDate(value) {
   if (!value) return '';
-  return new Intl.DateTimeFormat('ar-SA', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  return new Intl.DateTimeFormat(DATE_LOCALE, { year: 'numeric', month: '2-digit', day: '2-digit' })
     .format(new Date(value));
 }

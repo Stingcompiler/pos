@@ -3,6 +3,8 @@
  * جسم الإرسال، والسعر المقترح بسعر الصرف. مفصول هنا ليُختبر وحده.
  */
 
+import { DATE_LOCALE } from '../../utils/dates';
+
 export const PAGE_SIZE = 50;
 
 /** القطع المسعّرة بعملة أجنبية يُعدّ سعرها قديماً بعد هذه المدة بلا مراجعة. */
@@ -204,10 +206,9 @@ export function carModelLabel(car) {
   return `${car.brand} ${car.model_name} (${car.year_start}-${car.year_end || 'حتى الآن'})`;
 }
 
-/** تاريخ ميلادي صريح: ar-SA وحده يعرض التقويم الهجري في بعض المتصفحات. */
 export function formatDateTime(value) {
   if (!value) return '-';
-  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
+  return new Intl.DateTimeFormat(DATE_LOCALE, {
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   }).format(new Date(value));
 }

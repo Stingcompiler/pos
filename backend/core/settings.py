@@ -173,7 +173,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Database — PostgreSQL عند توفر الإعدادات، وإلا SQLite للتطوير
+# Database — PostgreSQL عند توفر الإعدادات، وإلا SQLite (التطوير والوضع المحلي)
 # ─────────────────────────────────────────────────────────────────────────────
 if os.environ.get('DB_NAME'):
     DATABASES = {
@@ -192,6 +192,17 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            'OPTIONS': {
+                # WAL: القراءة (التقارير، النسخ الاحتياطي) لا توقف البيع، وكل
+                # قارئ يرى لقطة ثابتة. synchronous يبقى FULL (الافتراضي) حتى لا
+                # يضيع بيع مُسجَّل عند انقطاع الكهرباء.
+                'init_command': 'PRAGMA journal_mode=WAL',
+                # IMMEDIATE: كل معاملة تحجز الكتابة من أولها، فينتظر الكاشير
+                # الثاني دوره (حتى timeout ثانية) بدل خطأ "database is locked"
+                # فوري عند ترقية قفل القراءة إلى كتابة.
+                'transaction_mode': 'IMMEDIATE',
+                'timeout': 20,
+            },
         }
     }
 

@@ -12,10 +12,11 @@ import {
   PRIMARY_BUTTON_CLASS,
   SectionCard,
 } from './SettingsUi';
+import { DATE_LOCALE } from '../../utils/dates';
 
 const HISTORY_SIZE = 10;
 
-const dateTimeFormat = new Intl.DateTimeFormat('ar-SD', {
+const dateTimeFormat = new Intl.DateTimeFormat(DATE_LOCALE, {
   year: 'numeric',
   month: 'short',
   day: 'numeric',

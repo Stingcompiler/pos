@@ -6,7 +6,8 @@
 
 تتحقق من بصمة البيانات قبل أي كتابة، وترفض الاستعادة فوق قاعدة فيها بيانات
 تشغيل ما لم يُمرَّر --force (يمسح القاعدة الحالية كاملة أولاً). بعد التحميل
-تُقارَن أعداد السجلات بما في بيان النسخة.
+تُقارَن أعداد السجلات بما في بيان النسخة، وعند أي اختلاف يُلغى كل شيء
+(والمسح أيضاً) فتبقى القاعدة كما كانت.
 """
 
 import hashlib
@@ -72,6 +73,16 @@ class Command(BaseCommand):
                 if options['force']:
                     call_command('flush', interactive=False, verbosity=0)
                 call_command('loaddata', fixture_path, verbosity=0)
+                # المطابقة قبل الالتزام: نسخة لا تطابق بيانها لا تحلّ محل القاعدة الحالية.
+                mismatches = {
+                    label: (expected, actual)
+                    for label, expected in manifest.get('counts', {}).items()
+                    if (actual := model_counts().get(label)) is not None and actual != expected
+                }
+                if mismatches:
+                    raise CommandError(
+                        f'أعداد السجلات بعد التحميل لا تطابق بيان النسخة، فلم يُستعد شيء: {mismatches}'
+                    )
         finally:
             Path(fixture_path).unlink(missing_ok=True)
 
@@ -92,14 +103,6 @@ class Command(BaseCommand):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(bundle.read(name))
             restored_media += 1
-
-        mismatches = {
-            label: (expected, actual)
-            for label, expected in manifest.get('counts', {}).items()
-            if (actual := model_counts().get(label)) is not None and actual != expected
-        }
-        if mismatches:
-            raise CommandError(f'اكتملت الاستعادة لكن الأعداد لا تطابق البيان: {mismatches}')
 
         self.stdout.write(self.style.SUCCESS(
             f"تمت الاستعادة من نسخة {manifest.get('created_at')}: "

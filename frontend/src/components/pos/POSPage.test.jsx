@@ -21,7 +21,12 @@ const INVOICE = {
   payment_method: 'cash', payment_method_display: 'نقدي', items: [], payments: [],
 };
 
+const COMMERCIAL = { ...PART, id: 8, name: 'فلتر زيت تجاري', part_number: 'OF-100C', quality_grade: 'commercial' };
+
 const notFound = () => Promise.reject({ response: { status: 404, data: { detail: 'لا توجد قطعة بهذا الرمز.' } } });
+const ambiguous = () => Promise.reject({
+  response: { status: 409, data: { detail: 'الرمز «90915-YZZE1» يطابق 2 قطع. اختر القطعة الصحيحة من البحث.' } },
+});
 
 function mockApi({ searchFails = false } = {}) {
   api.get.mockImplementation((url, config = {}) => {
@@ -33,11 +38,13 @@ function mockApi({ searchFails = false } = {}) {
       case 'customers/':
         return Promise.resolve({ data: { results: [WORKSHOP] } });
       case 'spare-parts/lookup/':
+        if (config.params.code === '90915-YZZE1') return ambiguous();
         return config.params.code === 'OF-100' ? Promise.resolve({ data: PART }) : notFound();
       case 'spare-parts/search-pos/':
-        return searchFails
-          ? Promise.reject({ response: { status: 500, data: { detail: 'انقطع الاتصال بقاعدة البيانات.' } } })
-          : Promise.resolve({ data: [] });
+        if (searchFails) {
+          return Promise.reject({ response: { status: 500, data: { detail: 'انقطع الاتصال بقاعدة البيانات.' } } });
+        }
+        return Promise.resolve({ data: config.params.q === '90915-YZZE1' ? [PART, COMMERCIAL] : [] });
       default:
         return Promise.reject(new Error(`unexpected GET ${url}`));
     }
@@ -79,6 +86,16 @@ describe('صفحة نقطة البيع', () => {
       expected_total: '25.00',
     });
     expect(config.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('رقم أصلي مشترك بين قطعتين: لا يُضاف شيء تلقائياً وتظهر القطعتان للاختيار', async () => {
+    render(<POS />);
+
+    await scan('90915-YZZE1');
+    expect(await screen.findByText(/يطابق 2 قطع/)).toBeInTheDocument();
+    expect(await screen.findByText('فلتر زيت تجاري')).toBeInTheDocument();
+    expect(screen.getByText('السلة فارغة')).toBeInTheDocument();
+    expect(searchBox()).toHaveValue('90915-YZZE1');
   });
 
   it('فشل البحث يظهر كخطأ لا كـ«لا توجد نتائج»', async () => {

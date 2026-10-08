@@ -303,7 +303,17 @@ class SparePartSerializer(HidesCostFieldsMixin, serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         validated_data.pop('opening_quantity', None)
-        return super().update(instance, validated_data)
+        compatible_cars = validated_data.pop('compatible_cars', None)
+        with transaction.atomic():
+            for field, value in validated_data.items():
+                setattr(instance, field, value)
+            # الحقول المرسلة فقط: الحفظ الكامل كان يكتب الرصيد والتكلفة كما قرأهما
+            # الطلب، فيمحو بيعاً أو توريداً تمّ أثناء فتح نموذج التعديل.
+            instance.save(update_fields=[*validated_data, 'updated_at'])
+            if compatible_cars is not None:
+                instance.compatible_cars.set(compatible_cars)
+        instance.refresh_from_db(fields=['stock_quantity', 'purchase_price'])
+        return instance
 
 
 class SparePartListSerializer(HidesCostFieldsMixin, serializers.ModelSerializer):

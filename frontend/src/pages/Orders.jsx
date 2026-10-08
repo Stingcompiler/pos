@@ -4,6 +4,7 @@ import {
   ShoppingCart, Clock, CheckCircle, XCircle, MessageSquare,
   ChevronDown, ChevronUp, Loader2, DollarSign, Inbox
 } from 'lucide-react';
+import { DATE_LOCALE } from '../utils/dates';
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -215,7 +216,7 @@ export default function Orders() {
                     <td className="p-4 text-xs text-surface-300">{order.location || 'غير محدد'}</td>
                     <td className="p-4 font-mono">{order.phone_number}</td>
                     <td className="p-4 text-xs text-surface-400">
-                      {new Date(order.created_at).toLocaleString('ar-SA')}
+                      {new Date(order.created_at).toLocaleString(DATE_LOCALE)}
                     </td>
                     <td className="p-4 font-bold text-accent-400">
                       {formatCurrency(order.total_amount)}
@@ -295,7 +296,7 @@ export default function Orders() {
             
             <div className="space-y-1 bg-surface-950/40 p-4 rounded-xl border border-white/5">
               <span className="text-[10px] text-surface-500 font-bold block">تاريخ الإرسال والقيمة</span>
-              <p className="text-xs">{new Date(selectedOrder.created_at).toLocaleString('ar-SA')}</p>
+              <p className="text-xs">{new Date(selectedOrder.created_at).toLocaleString(DATE_LOCALE)}</p>
               <p className="font-extrabold text-accent-400 text-base mt-1">
                 {formatCurrency(selectedOrder.total_amount)}
               </p>

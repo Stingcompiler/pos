@@ -23,6 +23,14 @@ from .models import Category, SparePart
 from .search import normalize_text
 
 MAX_ROWS = 20000
+# حدود الحقول: سعر الشراء والبيع 12 خانة منها 2 عشرية.
+MAX_AMOUNT = Decimal('9999999999.99')
+MAX_QUANTITY = 1_000_000
+TEXT_LIMITS = (
+    ('name', 'الاسم'), ('part_number', 'رقم القطعة'), ('category', 'الفئة'),
+    ('brand', 'العلامة'), ('oem_number', 'الرقم الأصلي'), ('barcode', 'الباركود'),
+    ('shelf_location', 'الرف'),
+)
 
 # العمود → أسماء عناوينه المقبولة (تُقارن بعد توحيد الحروف).
 COLUMNS = {
@@ -124,7 +132,7 @@ def _text(value) -> str:
     return str(value).strip()
 
 
-def _decimal(value, label, errors):
+def _decimal(value, label, errors, maximum=MAX_AMOUNT):
     text = _text(value).replace(',', '')
     if not text:
         return None
@@ -133,14 +141,21 @@ def _decimal(value, label, errors):
     except InvalidOperation:
         errors.append(f'{label} غير رقمي: {text}')
         return None
+    # NaN و Infinity تقبلها Decimal لكن لا تُقارن ولا تُحفظ (خلية #N/A مثلاً).
+    if not number.is_finite():
+        errors.append(f'{label} غير رقمي: {text}')
+        return None
     if number < 0:
         errors.append(f'{label} لا يمكن أن يكون سالباً.')
+        return None
+    if number > maximum:
+        errors.append(f'{label} أكبر من الحد المسموح ({maximum}).')
         return None
     return number.quantize(Decimal('0.01'))
 
 
 def _integer(value, label, errors):
-    number = _decimal(value, label, errors)
+    number = _decimal(value, label, errors, maximum=MAX_QUANTITY)
     if number is None:
         return None
     if number != number.to_integral_value():
@@ -149,11 +164,22 @@ def _integer(value, label, errors):
     return int(number)
 
 
+def _check_lengths(record, errors):
+    """نص أطول من الحقل: SQLite يقبله بصمت وPostgreSQL يرفض الملف كله عند الحفظ."""
+    for field, label in TEXT_LIMITS:
+        model_field = (
+            Category._meta.get_field('name') if field == 'category' else SparePart._meta.get_field(field)
+        )
+        if len(record[field] or '') > model_field.max_length:
+            errors.append(f'{label} أطول من {model_field.max_length} حرفاً.')
+
+
 def parse_rows(rows) -> list:
     """تحويل الصفوف إلى سجلات مع أخطاء كل صف (رقم الصف كما في Excel)."""
     mapping = _map_headers(rows[0])
     records = []
     seen_numbers = {}
+    seen_barcodes = {}
     for offset, row in enumerate(rows[1:], start=2):
         def cell(column):
             index = mapping.get(column)
@@ -189,6 +215,13 @@ def parse_rows(rows) -> list:
             errors.append(f"رقم القطعة مكرر في الملف (الصف {seen_numbers[record['part_number']]}).")
         else:
             seen_numbers[record['part_number']] = offset
+        if record['barcode']:
+            # الباركود فريد في القاعدة: تكراره بين صفين كان يُسقط التطبيق كله بخطأ 500.
+            if record['barcode'] in seen_barcodes:
+                errors.append(f"الباركود مكرر في الملف (الصف {seen_barcodes[record['barcode']]}).")
+            else:
+                seen_barcodes[record['barcode']] = offset
+        _check_lengths(record, errors)
         record['errors'] = errors
         records.append(record)
     return records
