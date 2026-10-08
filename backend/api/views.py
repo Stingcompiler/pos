@@ -791,6 +791,15 @@ def public_contact_submit(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+def demo_accounts():
+    from api.management.commands.seed_demo import DEMO_PASSWORD, DEMO_USERS
+    labels = {'manager': 'مدير', 'employee': 'كاشير'}
+    return [
+        {'username': username, 'password': DEMO_PASSWORD, 'role': labels.get(role, role)}
+        for username, _, role in DEMO_USERS
+    ]
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def public_settings(request):
@@ -812,6 +821,8 @@ def public_settings(request):
             many=True,
             context={'request': request},
         ).data,
+        # نسخة العرض فقط: حسابات التجربة المنشورة أصلاً في صفحة الدخول.
+        'demo_accounts': demo_accounts() if settings.DEMO_MODE else [],
     })
 
 

@@ -59,6 +59,8 @@ DEBUG = env_bool('DJANGO_DEBUG', False)
 # فيستمر البيع عند انقطاع الإنترنت. لا HTTPS على الشبكة المحلية، فتُعطَّل
 # الكوكيز الآمنة وإعادة التوجيه وHSTS. لا تستخدمه لخادم مكشوف على الإنترنت.
 LOCAL_NETWORK_MODE = env_bool('DJANGO_LOCAL_NETWORK', False)
+# نسخة عرض للتسويق: صفحة الدخول تعرض حسابات التجربة، وseed_demo --reset مسموح.
+DEMO_MODE = env_bool('DJANGO_DEMO_MODE', False)
 
 
 def _resolve_secret_key() -> str:
@@ -191,7 +193,8 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            # DJANGO_SQLITE_PATH: مجلد دائم في الحاويات (ملفات WAL تجاور القاعدة).
+            'NAME': os.environ.get('DJANGO_SQLITE_PATH') or BASE_DIR / 'db.sqlite3',
             'OPTIONS': {
                 # WAL: القراءة (التقارير، النسخ الاحتياطي) لا توقف البيع، وكل
                 # قارئ يرى لقطة ثابتة. synchronous يبقى FULL (الافتراضي) حتى لا
@@ -274,11 +277,13 @@ BACKUP_DIR = os.environ.get('DJANGO_BACKUP_DIR') or str(BASE_DIR / 'backups')
 BACKUP_KEEP = int(os.environ.get('DJANGO_BACKUP_KEEP', '14'))
 BACKUP_ENCRYPTION_KEY = os.environ.get('DJANGO_BACKUP_KEY', '')
 
-# عامل خدمة الواجهة (PWA) في /static/sw.js ونطاقه الجذر كله.
-WHITENOISE_ADD_HEADERS_FUNCTION = 'core.static_headers.add_headers'
+# عامل خدمة الواجهة (PWA) في /static/sw.js ونطاقه الجذر كله. WhiteNoise يريد
+# الدالة نفسها لا مسارها النصي (النص يُسقط الخادم عند الإقلاع في الإنتاج).
+from core.static_headers import add_headers as _static_headers  # noqa: E402
+WHITENOISE_ADD_HEADERS_FUNCTION = _static_headers
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT') or BASE_DIR / 'media')
 # ملفات خاصة (صور إشعارات التحويل) خارج MEDIA_ROOT: لا تُخدم عبر /media/.
 PRIVATE_MEDIA_ROOT = Path(os.environ.get('DJANGO_PRIVATE_MEDIA_ROOT') or BASE_DIR / 'private_media')
 
@@ -315,6 +320,9 @@ REST_FRAMEWORK = {
         'login': '10/min',
         'public_write': '30/hour',
     },
+    # خلف وكيل عكسي (Caddy/Nginx) كل الطلبات تأتي من عنوانه؛ بدون هذا يتقاسم
+    # كل الزوار حد الدخول نفسه، أو يتجاوزه أي زائر بترويسة X-Forwarded-For مزوّرة.
+    'NUM_PROXIES': int(os.environ['DJANGO_NUM_PROXIES']) if os.environ.get('DJANGO_NUM_PROXIES') else None,
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

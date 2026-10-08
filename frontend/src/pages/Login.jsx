@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, AlertCircle, PlayCircle } from 'lucide-react';
 import BrandMark from '../components/BrandMark';
+import api from '../api/axios';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -10,16 +11,25 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoAccounts, setDemoAccounts] = useState([]);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // نسخة العرض فقط: الخادم يعيد حسابات التجربة لتظهر هنا بزر دخول مباشر.
+  useEffect(() => {
+    let active = true;
+    api.get('public/settings/')
+      .then(({ data }) => { if (active) setDemoAccounts(data.demo_accounts || []); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const signIn = async (user, pass) => {
     setError('');
     setLoading(true);
 
     try {
-      const userData = await login(username, password);
+      const userData = await login(user, pass);
       // Redirect based on role
       if (userData.role === 'employee') {
         navigate('/pos', { replace: true });
@@ -31,6 +41,11 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    signIn(username, password);
   };
 
   return (
@@ -129,6 +144,29 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          {demoAccounts.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-white/5 space-y-3">
+              <p className="text-sm text-surface-300 text-center">
+                نسخة تجريبية ببيانات وهمية تُعاد كل ليلة — جرّب بأي دور:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {demoAccounts.map((account) => (
+                  <button
+                    key={account.username}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => signIn(account.username, account.password)}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-surface-800 border border-white/10
+                      text-white text-sm font-semibold hover:border-primary-500/50 transition disabled:opacity-50"
+                  >
+                    <PlayCircle className="w-4 h-4 text-primary-400" aria-hidden="true" />
+                    دخول ك{account.role}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

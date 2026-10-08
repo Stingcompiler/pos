@@ -1,0 +1,9 @@
+[Unit]
+Description=Aspir demo: wipe and reseed demo data
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/apps/aspir/deploy/vps
+ExecStart=/usr/bin/docker compose exec -T app python manage.py seed_demo --reset

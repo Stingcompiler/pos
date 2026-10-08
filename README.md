@@ -227,3 +227,19 @@ frontend/
 | **مدير** | كل شيء، بما فيه إدارة المستخدمين والحذف وإعادة فتح يوم مُقفل |
 | **مشرف** | كل شيء ما عدا الحذف وإدارة المستخدمين؛ المرتجعات، الإقفال، المطابقة، الجرد، التسعير |
 | **موظف** | البيع، إضافة العملاء وتحصيل ديونهم؛ يرى فواتيره فقط ولا يرى التكلفة أو الربح أو التقارير |
+
+## نسخة العرض (Docker)
+
+نسخة تسويقية حية: **https://aspir.stingdev.pro**. البيانات وهمية، وصفحة الدخول
+تعرض حسابَي التجربة (مدير وكاشير)، وكل شيء يُعاد إلى حالته كل ليلة الساعة 5 صباحاً.
+
+```bash
+cd deploy/vps
+cp aspir.env.example .env          # اضبط DJANGO_SECRET_KEY والنطاق
+docker compose up -d --build       # يستمع على 127.0.0.1:3300 خلف Caddy/Nginx
+docker compose exec app python manage.py seed_demo --reset
+```
+
+- `Dockerfile` يبني الواجهة ثم يشغّل Django عبر Gunicorn، والبيانات في volume (`/data`).
+- `seed_demo --reset` يمسح القاعدة كلها، ولا يعمل إلا مع `DJANGO_DEMO_MODE=True`.
+- إعادة التعيين الليلية: `deploy/vps/aspir-demo-reset.{service,timer}` في systemd.

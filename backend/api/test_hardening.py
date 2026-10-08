@@ -169,3 +169,41 @@ class ImportValidationTests(BaseAPITestCase):
         self.assertIn('الكمية أكبر من الحد', errors[4])
         self.assertIn('سعر البيع أكبر من الحد', errors[5])
         self.assertIn('رقم القطعة أطول من 100', errors[6])
+
+
+class DemoSeedTests(BaseAPITestCase):
+    """بيانات العرض: تعبئة كاملة عبر الخدمات، و--reset محصور في وضع العرض."""
+
+    def test_reset_requires_demo_mode(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with self.assertRaises(CommandError):
+            call_command('seed_demo', reset=True, stdout=io.StringIO())
+        self.assertTrue(SparePart.objects.filter(pk=self.part.pk).exists())
+
+    def test_demo_seed_and_login_hint(self):
+        from django.core.management import call_command
+        from django.test import override_settings
+        from rest_framework.test import APIClient
+        from api.models import Invoice, PublicOrder
+
+        with override_settings(DEMO_MODE=True):
+            call_command('seed_demo', reset=True, stdout=io.StringIO())
+            self.assertGreater(Invoice.objects.count(), 20)
+            self.assertEqual(PublicOrder.objects.count(), 2)
+            accounts = APIClient().get('/api/public/settings/').data['demo_accounts']
+            self.assertEqual([a['username'] for a in accounts], ['demo', 'cashier'])
+            login = APIClient().post('/api/auth/login/', {'username': 'demo', 'password': accounts[0]['password']},
+                                     format='json')
+            self.assertEqual(login.status_code, 200)
+        self.assertEqual(APIClient().get('/api/public/settings/').data['demo_accounts'], [])
+
+
+class StaticHeadersTests(BaseAPITestCase):
+
+    def test_service_worker_header_function_is_callable(self):
+        # كان نصاً مسارياً فتسقط WhiteNoise عند الإقلاع في الإنتاج (DEBUG=False).
+        from django.conf import settings
+        headers = {}
+        settings.WHITENOISE_ADD_HEADERS_FUNCTION(headers, '/x/sw.js', '/static/sw.js')
+        self.assertEqual(headers['Service-Worker-Allowed'], '/')

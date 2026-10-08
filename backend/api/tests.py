@@ -15,6 +15,7 @@ from decimal import Decimal
 from io import BytesIO
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -48,6 +49,9 @@ class BaseAPITestCase(TestCase):
     """بيانات أساسية مشتركة + أدوات عميل الـ API."""
 
     def setUp(self):
+        # عدّادات تحديد المعدل (الدخول 10/دقيقة) في الذاكرة المؤقتة: بدون
+        # تصفيرها يتأثر اختبار بعدد محاولات الدخول في الاختبارات التي سبقته.
+        cache.clear()
         self.manager = User.objects.create_user(
             username='manager1', password=PASSWORD, role='manager'
         )
