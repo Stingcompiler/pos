@@ -1,0 +1,92 @@
+{% comment %}
+صفحة «غير موجود» عربية — مستقلة تماماً (CSS داخلي، بلا ملفات ثابتة) لأن
+صفحة الخطأ يجب أن تعمل حتى حين يتعطّل النظام نفسه. لا إيموجي: أيقونة SVG.
+{% endcomment %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الصفحة غير موجودة</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: #0b0f1a;
+      color: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Arial, sans-serif;
+      line-height: 1.7;
+    }
+    .card {
+      max-width: 460px;
+      width: 100%;
+      text-align: center;
+      padding: 40px 28px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+    }
+    .icon-box {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 20px;
+      background: rgba(220, 38, 38, 0.12);
+      border: 1px solid rgba(220, 38, 38, 0.28);
+    }
+    .code {
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #dc2626;
+      font-variant-numeric: tabular-nums;
+    }
+    h1 { font-size: 20px; margin: 10px 0 8px; color: #ffffff; }
+    p { font-size: 14px; color: #9ca3af; margin-bottom: 26px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+    }
+    a:hover { opacity: 0.85; }
+    .primary { background: #dc2626; color: #ffffff; }
+    .ghost {
+      background: rgba(255, 255, 255, 0.06);
+      color: #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-box">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f87171"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        <line x1="8" y1="11" x2="14" y2="11"></line>
+      </svg>
+    </div>
+    <div class="code">404</div>
+    <h1>الصفحة غير موجودة</h1>
+    <p>الرابط الذي فتحته غير صحيح أو تم نقل الصفحة. تأكد من العنوان أو ابدأ من الصفحة الرئيسية.</p>
+    <div class="actions">
+      <a class="primary" href="/">العودة إلى المتجر</a>
+      <a class="ghost" href="/shop">تصفح قطع الغيار</a>
+    </div>
+  </div>
+</body>
+</html>

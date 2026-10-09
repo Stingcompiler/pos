@@ -1,0 +1,29 @@
+{
+  "database_integrity": "ok",
+  "source_and_restored_identical": true,
+  "tables": {
+    "api_sparepart": {
+      "count": 65,
+      "sha256": "336fabd06acc1063e066e5b65c69f7d05a35429379d1eebf14e98f874b8b3e42"
+    },
+    "api_invoice": {
+      "count": 1,
+      "sha256": "3378aa692b1ccc54d7f3add5d4e4e10b63e6d5e4828e57f92ec91281da3a6af7"
+    },
+    "api_invoiceitem": {
+      "count": 1,
+      "sha256": "c9d88321f85f207ab7ec3eb8667fc17c8024f82ffac92dfba564bd30b3889d6c"
+    },
+    "api_stockmovement": {
+      "count": 1,
+      "sha256": "71ab8153f7fa1a2f5abcfec522e3b48d194ee254dc0b12258668d83cf0180fcd"
+    },
+    "api_customer": {
+      "count": 65,
+      "sha256": "1ef07ed2be96aef081196283ff8c951b8c5fb22a47fec31a4fb04425768c6b79"
+    }
+  },
+  "synthetic_media_sha256": "fde642005ce166a2164147128ddb629431cd5d317e54cafc1813c4150bff671d",
+  "media_bytes_identical": true,
+  "limitation": "Synthetic SQLite restore smoke test; not an existing production backup system or a PostgreSQL production recovery test."
+}

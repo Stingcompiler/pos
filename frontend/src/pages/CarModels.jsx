@@ -1,13 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import Pagination from '../components/sales/Pagination';
+import useDebouncedValue from '../components/sales/useDebouncedValue';
+import usePagedList from '../hooks/usePagedList';
+import { useAuth } from '../context/useAuth';
 import { Car, Plus, Edit3, Trash2, X, Loader2, Save, Search, Image as ImageIcon } from 'lucide-react';
+
+const PAGE_SIZE = 25;
 
 export default function CarModels() {
   const { user } = useAuth();
-  const [models, setModels] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery.trim());
+  const {
+    items: models, count, page, setPage, loading, reload: loadModels,
+  } = usePagedList('car-models/', { pageSize: PAGE_SIZE, params: { search: debouncedSearch } });
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -21,18 +28,6 @@ export default function CarModels() {
 
   const emptyForm = { brand: '', model_name: '', year_start: '', year_end: '', description: '' };
   const [form, setForm] = useState(emptyForm);
-
-  useEffect(() => { loadModels(); }, [searchQuery]);
-
-  const loadModels = async () => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (searchQuery) params.search = searchQuery;
-      const res = await api.get('car-models/', { params });
-      setModels(res.data.results || res.data);
-    } catch {} finally { setLoading(false); }
-  };
 
   const openCreate = () => {
     setEditing(null);
@@ -199,6 +194,10 @@ export default function CarModels() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-4">
+        <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} disabled={loading} noun="موديل" />
       </div>
 
       {/* Modal */}

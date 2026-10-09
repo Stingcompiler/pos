@@ -23,7 +23,23 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': [
+        'error',
+        {
+          // ^[A-Z_] للمكوّنات التي تُستخدَم داخل JSX فقط، لأن ESLint الأساسي
+          // لا يعدّ وسوم JSX مراجع للمتغيّرات (لهذا يُضاف eslint-plugin-react).
+          varsIgnorePattern: '^[A-Z_]',
+        },
+      ],
+      // السماح بتصدير ثوابت (كائنات السياق) بجانب المكوّن دون كسر Fast Refresh.
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
+    },
+  },
+  {
+    // ملفات الإعداد تعمل في بيئة Node لا في المتصفح، لذا لا تعرِف `process`.
+    files: ['*.config.js'],
+    languageOptions: {
+      globals: globals.node,
     },
   },
 ])

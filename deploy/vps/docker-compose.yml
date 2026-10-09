@@ -1,0 +1,21 @@
+# نسخة العرض على VPS خلف Caddy: https://aspir.stingdev.pro → 127.0.0.1:3300
+#   cd deploy/vps && cp aspir.env.example .env  (ثم اضبط المفتاح)
+#   docker compose up -d --build
+#   docker compose exec app python manage.py seed_demo --reset
+name: aspir
+
+services:
+  app:
+    build:
+      # على الخادم: ASPIR_SRC=/srv/apps/aspir في /etc/aspir/.env (ملف compose مثبّت هناك).
+      context: ${ASPIR_SRC:-../..}
+    image: aspir:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:3300:8000"
+    volumes:
+      - aspir-data:/data
+
+volumes:
+  aspir-data:

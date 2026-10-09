@@ -1,0 +1,185 @@
+Creating test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+Found 12 test(s).
+Operations to perform:
+  Synchronize unmigrated apps: corsheaders, django_filters, messages, rest_framework, staticfiles
+  Apply all migrations: admin, api, auth, contenttypes, sessions, token_blacklist
+Synchronizing apps without migrations:
+  Creating tables...
+    Running deferred SQL...
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0001_initial... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying api.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying api.0002_alter_sparepart_category... OK
+  Applying api.0003_alter_sparepart_category... OK
+  Applying api.0004_invoice_bank_name_invoice_currency_and_more... OK
+  Applying api.0005_contactmessage_contactmethod_sitesetting_and_more... OK
+  Applying api.0006_carmodel_description_carmodel_image_and_more... OK
+  Applying api.0007_customer_storeresource_invoice_customer... OK
+  Applying api.0008_supplier_supplydeal_delete_storeresource_and_more... OK
+  Applying api.0009_publicorder_publicorderitem... OK
+  Applying api.0010_publicorder_location... OK
+  Applying api.0011_notification... OK
+  Applying api.0012_alter_sitesetting_logo... OK
+  Applying api.0013_invoiceitem_cost_price_and_more... OK
+  Applying api.0014_alter_carmodel_image_alter_category_image_and_more... OK
+  Applying api.0015_publicorderitem_cost_price_and_more... OK
+  Applying sessions.0001_initial... OK
+  Applying token_blacklist.0001_initial... OK
+  Applying token_blacklist.0002_outstandingtoken_jti_hex... OK
+  Applying token_blacklist.0003_auto_20171017_2007... OK
+  Applying token_blacklist.0004_auto_20171017_2013... OK
+  Applying token_blacklist.0005_remove_outstandingtoken_jti... OK
+  Applying token_blacklist.0006_auto_20171017_2113... OK
+  Applying token_blacklist.0007_auto_20171017_2214... OK
+  Applying token_blacklist.0008_migrate_to_bigautofield... OK
+  Applying token_blacklist.0010_fix_migrate_to_bigautofield... OK
+  Applying token_blacklist.0011_linearizes_history... OK
+  Applying token_blacklist.0012_alter_outstandingtoken_user... OK
+  Applying token_blacklist.0013_alter_blacklistedtoken_options_and_more...test_01_duplicate_lines_cannot_sell_more_than_stock (review_checks.ReviewChecks.test_01_duplicate_lines_cannot_sell_more_than_stock) ... /Users/macbookairm1/Desktop/pos/backend/.venv/lib/python3.13/site-packages/django/core/handlers/base.py:61: UserWarning: No directory at: /private/tmp/pos-review-20261007-static/
+  mw_instance = middleware(adapted_handler)
+FAIL
+test_02_employee_cannot_read_purchase_cost (review_checks.ReviewChecks.test_02_employee_cannot_read_purchase_cost) ... FAIL
+test_03_employee_cannot_read_invoice_profit (review_checks.ReviewChecks.test_03_employee_cannot_read_invoice_profit) ... FAIL
+test_04_cookie_write_requires_csrf (review_checks.ReviewChecks.test_04_cookie_write_requires_csrf) ... FAIL
+test_05_supply_reversal_restores_cost (review_checks.ReviewChecks.test_05_supply_reversal_restores_cost) ... FAIL
+test_06_supplier_deletion_preserves_supply_history (review_checks.ReviewChecks.test_06_supplier_deletion_preserves_supply_history) ... FAIL
+test_07_same_idempotency_key_does_not_double_sell (review_checks.ReviewChecks.test_07_same_idempotency_key_does_not_double_sell) ... FAIL
+test_08_mixed_currencies_are_not_summed_as_one (review_checks.ReviewChecks.test_08_mixed_currencies_are_not_summed_as_one) ... FAIL
+test_09_admin_stock_change_keeps_movement (review_checks.ReviewChecks.test_09_admin_stock_change_keeps_movement) ... FAIL
+test_10_admin_supply_deletion_reverses_stock (review_checks.ReviewChecks.test_10_admin_supply_deletion_reverses_stock) ... FAIL
+test_11_today_uses_local_date (review_checks.ReviewChecks.test_11_today_uses_local_date) ... FAIL
+test_12_confirmation_then_cancellation_is_balanced (review_checks.ReviewChecks.test_12_confirmation_then_cancellation_is_balanced) ... ok
+
+======================================================================
+FAIL: test_01_duplicate_lines_cannot_sell_more_than_stock (review_checks.ReviewChecks.test_01_duplicate_lines_cannot_sell_more_than_stock)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 34, in test_01_duplicate_lines_cannot_sell_more_than_stock
+    self.assertEqual(result.status_code, 400, '12 units requested from stock of 10 must be rejected')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 201 != 400 : 12 units requested from stock of 10 must be rejected
+
+======================================================================
+FAIL: test_02_employee_cannot_read_purchase_cost (review_checks.ReviewChecks.test_02_employee_cannot_read_purchase_cost)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 41, in test_02_employee_cannot_read_purchase_cost
+    self.assertNotIn('purchase_price', row)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'purchase_price' unexpectedly found in {'id': 1, 'name': 'Audit filter', 'part_number': 'AUDIT-001', 'category_name': 'Audit filters', 'purchase_price': '10.00', 'selling_price': '20.00', 'stock_quantity': 10, 'is_low_stock': False, 'shelf_location': '', 'compatible_cars_display': [], 'is_featured': False, 'image': None, 'description': None, 'supplier': 1, 'supplier_name': 'Audit supplier'}
+
+======================================================================
+FAIL: test_03_employee_cannot_read_invoice_profit (review_checks.ReviewChecks.test_03_employee_cannot_read_invoice_profit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 48, in test_03_employee_cannot_read_invoice_profit
+    self.assertNotIn('cost_price', result.data['items'][0])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'cost_price' unexpectedly found in {'id': 1, 'spare_part': 1, 'spare_part_name': 'Audit filter', 'part_number': 'AUDIT-001', 'quantity': 1, 'unit_price': '20.00', 'cost_price': '10.00', 'subtotal': '20.00', 'profit': '10.00'}
+
+======================================================================
+FAIL: test_04_cookie_write_requires_csrf (review_checks.ReviewChecks.test_04_cookie_write_requires_csrf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 56, in test_04_cookie_write_requires_csrf
+    self.assertEqual(result.status_code, 403)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 403
+
+======================================================================
+FAIL: test_05_supply_reversal_restores_cost (review_checks.ReviewChecks.test_05_supply_reversal_restores_cost)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 63, in test_05_supply_reversal_restores_cost
+    self.assertEqual(self.part.purchase_price, Decimal('10'))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Decimal('20.00') != Decimal('10')
+
+======================================================================
+FAIL: test_06_supplier_deletion_preserves_supply_history (review_checks.ReviewChecks.test_06_supplier_deletion_preserves_supply_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 70, in test_06_supplier_deletion_preserves_supply_history
+    self.assertTrue(SupplyDeal.objects.filter(pk=deal.pk).exists())
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_07_same_idempotency_key_does_not_double_sell (review_checks.ReviewChecks.test_07_same_idempotency_key_does_not_double_sell)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 78, in test_07_same_idempotency_key_does_not_double_sell
+    self.assertEqual(Invoice.objects.count(), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 1
+
+======================================================================
+FAIL: test_08_mixed_currencies_are_not_summed_as_one (review_checks.ReviewChecks.test_08_mixed_currencies_are_not_summed_as_one)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 86, in test_08_mixed_currencies_are_not_summed_as_one
+    self.assertNotEqual(report.data['overall']['total_revenue'], 40.0, '20 SDG + 20 USD cannot be reported as an unlabelled 40')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 40.0 == 40.0 : 20 SDG + 20 USD cannot be reported as an unlabelled 40
+
+======================================================================
+FAIL: test_09_admin_stock_change_keeps_movement (review_checks.ReviewChecks.test_09_admin_stock_change_keeps_movement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 96, in test_09_admin_stock_change_keeps_movement
+    self.assertEqual(StockMovement.objects.count(), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_10_admin_supply_deletion_reverses_stock (review_checks.ReviewChecks.test_10_admin_supply_deletion_reverses_stock)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 105, in test_10_admin_supply_deletion_reverses_stock
+    self.assertEqual(self.part.stock_quantity, 10)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 12 != 10
+
+======================================================================
+FAIL: test_11_today_uses_local_date (review_checks.ReviewChecks.test_11_today_uses_local_date)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/macbookairm1/Desktop/pos/reviews/2026-10-07/review_checks.py", line 114, in test_11_today_uses_local_date
+    self.assertEqual(stats.data['today_invoices'], 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.152s
+
+FAILED (failures=11)
+Destroying test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+ OK
+System check identified no issues (0 silenced).
+EVIDENCE duplicate lines: status=201, stock=4, sold=12, movement_sum=-12
+EVIDENCE employee part fields: purchase_price=10.00
+EVIDENCE employee invoice cost/profit: 10.00/10.00
+EVIDENCE untrusted-origin write without CSRF: status=200, stock=2
+EVIDENCE reversed restock: stock=10, purchase_price=20.00, expected_cost=10.00
+EVIDENCE supplier delete: status=204, deal_exists=False, stock=12
+EVIDENCE repeated invoice key: statuses=201,201, invoices=2, stock=8
+EVIDENCE mixed currency report: {'total_revenue': 40.0, 'total_orders': 2, 'cash_sales': 40.0, 'bank_sales': 0.0, 'cash_count': 2, 'bank_count': 0, 'total_profit': 20.0, 'gross_margin_percent': 50.0}
+EVIDENCE admin stock save: stock=17, movements=0, readonly=['created_at', 'updated_at']
+EVIDENCE admin supply deletion: stock=12, expected=10
+EVIDENCE Khartoum 01:30 on Oct 7: today_invoices=0, expected=1

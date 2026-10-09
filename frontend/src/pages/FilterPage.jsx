@@ -1,115 +1,128 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import {
   Wrench, Layers, Car, Search, Trash2, ArrowRight,
   Loader2, Info, Grid, SlidersHorizontal, ChevronDown, ChevronUp,
-  ShoppingCart, ShoppingBag, X, CheckSquare, Send, CheckCircle, Download,
-  Smartphone, Share2, PlusSquare, MoreVertical
+  ShoppingCart, ShoppingBag, X, CheckSquare, Send, CheckCircle, AlertTriangle, RefreshCw,
 } from 'lucide-react';
-import { useCart } from '../context/CartContext';
+import api from '../api/axios';
+import { mediaUrl } from '../api/media';
+import { useCart } from '../context/useCart';
+import CheckoutModal from '../components/shop/CheckoutModal';
+import { apiErrorMessage } from '../utils/api';
+import { formatPrice } from '../utils/currency';
 
-const API_BASE_URL = 'https://missingcars.pythonanywhere.com/api/';
-
-const getImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const apiBase = 'https://missingcars.pythonanywhere.com/api/';
-  const backendBase = apiBase.replace(/\/api\/?$/, '');
-  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
-};
+// روابط الصور تُبنى مركزياً من مساعد الميديا الموحّد (بدون أي نطاق مكتوب).
+const getImageUrl = mediaUrl;
 
 export default function FilterPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { cart, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, cartTotal } = useCart();
+  const { cart, addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } = useCart();
 
   // ──── Cart & Checkout Drawer States ────
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutForm, setCheckoutForm] = useState({ customer_name: '', phone_number: '', email: '', location: '' });
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
-
-
 
   // ──── States ────
   const [categories, setCategories] = useState([]);
   const [carModels, setCarModels] = useState([]);
   const [parts, setParts] = useState([]);
-  
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedCarModel, setSelectedCarModel] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
+  const [nextPage, setNextPage] = useState(null);
+
+  // الفلاتر تبدأ من رابط الصفحة مرة واحدة (روابط الأقسام من الصفحة الرئيسية).
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category_id') || '');
+  const [selectedCarModel, setSelectedCarModel] = useState(() => searchParams.get('car_model_id') || '');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const [loading, setLoading] = useState(true);
+  const [metadataError, setMetadataError] = useState('');
   const [partsLoading, setPartsLoading] = useState(false);
-  const [siteName, setSiteName] = useState('محل قطع الغيار');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [partsError, setPartsError] = useState('');
+  const [siteName, setSiteName] = useState('اسبير');
+  // رقم آخر طلب: ردّ بحث قديم يصل متأخراً لا يكتب فوق نتائج البحث الحالي.
+  const requestId = useRef(0);
 
   // Mobile filters collapse toggle
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // ──── Initial Load: Settings, Categories & CarModels ────
-  useEffect(() => {
-    const fetchMetadata = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}public/settings/`);
-        if (res.data.settings) {
-          setSiteName(res.data.settings.site_name);
-        }
-        if (res.data.categories) {
-          setCategories(res.data.categories);
-        }
-        if (res.data.car_models) {
-          setCarModels(res.data.car_models);
-        }
-
-        // Prefill filters from URL if present
-        const catUrl = searchParams.get('category_id');
-        const carUrl = searchParams.get('car_model_id');
-        if (catUrl) setSelectedCategory(catUrl);
-        if (carUrl) setSelectedCarModel(carUrl);
-      } catch (err) {
-        console.error('Error fetching search metadata:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMetadata();
+  // ──── Initial Load: Settings, Categories & CarModels (مرة واحدة) ────
+  const fetchMetadata = useCallback(async () => {
+    setLoading(true);
+    setMetadataError('');
+    try {
+      const res = await api.get('public/settings/');
+      if (res.data.settings) setSiteName(res.data.settings.site_name);
+      setCategories(res.data.categories || []);
+      setCarModels(res.data.car_models || []);
+    } catch (err) {
+      setMetadataError(apiErrorMessage(err, 'تعذّر تحميل أقسام المتجر.'));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // ──── Fetch Parts on Filter / Search Change ────
   useEffect(() => {
-    const fetchFilteredParts = async () => {
-      setPartsLoading(true);
-      try {
-        const params = {};
-        if (selectedCategory) params.category_id = selectedCategory;
-        if (selectedCarModel) params.car_model_id = selectedCarModel;
-        if (searchQuery) params.search = searchQuery;
+    fetchMetadata();
+  }, [fetchMetadata]);
 
-        const res = await axios.get(`${API_BASE_URL}public/parts/`, { params });
-        setParts(res.data);
-
-        // Keep URL Search Params synced
-        const nextParams = {};
-        if (selectedCategory) nextParams.category_id = selectedCategory;
-        if (selectedCarModel) nextParams.car_model_id = selectedCarModel;
-        setSearchParams(nextParams);
-      } catch (err) {
-        console.error('Error fetching filtered parts:', err);
-      } finally {
-        setPartsLoading(false);
-      }
-    };
-
-    // Debounce/Timeout search queries slightly to avoid excessive backend hitting
-    const delayDebounce = setTimeout(() => {
-      fetchFilteredParts();
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
+  const buildParams = useCallback((page) => {
+    const params = { page };
+    if (selectedCategory) params.category_id = selectedCategory;
+    if (selectedCarModel) params.car_model_id = selectedCarModel;
+    if (searchQuery.trim()) params.search = searchQuery.trim();
+    return params;
   }, [selectedCategory, selectedCarModel, searchQuery]);
+
+  // ──── Fetch Parts on Filter / Search Change (الصفحة الأولى) ────
+  const fetchFirstPage = useCallback(async () => {
+    const current = ++requestId.current;
+    setPartsLoading(true);
+    setPartsError('');
+    try {
+      const res = await api.get('public/parts/', { params: buildParams(1) });
+      if (current !== requestId.current) return;
+      setParts(res.data.results);
+      setTotalCount(res.data.count);
+      setNextPage(res.data.next ? 2 : null);
+    } catch (err) {
+      if (current !== requestId.current) return;
+      // فشل التحميل ليس «لا توجد نتائج»: الزائر يحتاج أن يعرف ويعيد المحاولة.
+      setPartsError(apiErrorMessage(err, 'تعذّر تحميل المنتجات.'));
+    } finally {
+      if (current === requestId.current) setPartsLoading(false);
+    }
+  }, [buildParams]);
+
+  useEffect(() => {
+    // Keep URL Search Params synced
+    const nextParams = {};
+    if (selectedCategory) nextParams.category_id = selectedCategory;
+    if (selectedCarModel) nextParams.car_model_id = selectedCarModel;
+    setSearchParams(nextParams, { replace: true });
+
+    // Debounce search queries slightly to avoid excessive backend hitting
+    const delayDebounce = setTimeout(fetchFirstPage, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [selectedCategory, selectedCarModel, fetchFirstPage, setSearchParams]);
+
+  const loadMore = async () => {
+    if (!nextPage || loadingMore) return;
+    const current = requestId.current;
+    setLoadingMore(true);
+    try {
+      const res = await api.get('public/parts/', { params: buildParams(nextPage) });
+      if (current !== requestId.current) return;
+      setParts((prev) => [...prev, ...res.data.results]);
+      setNextPage(res.data.next ? nextPage + 1 : null);
+    } catch (err) {
+      setPartsError(apiErrorMessage(err, 'تعذّر تحميل المزيد من المنتجات.'));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleClearFilters = () => {
     setSelectedCategory('');
@@ -118,51 +131,30 @@ export default function FilterPage() {
     setSearchParams({});
   };
 
-  const handleCheckoutSubmit = async (e) => {
-    e.preventDefault();
-    if (!checkoutForm.customer_name.trim() || !checkoutForm.phone_number.trim()) {
-      alert('الرجاء تعبئة الاسم ورقم الهاتف لإكمال الطلب.');
-      return;
-    }
-    setCheckoutLoading(true);
-    try {
-      const payload = {
-        customer_name: checkoutForm.customer_name,
-        phone_number: checkoutForm.phone_number,
-        email: checkoutForm.email || null,
-        location: checkoutForm.location || null,
-        items: cart.map(item => ({
-          spare_part: item.part.id,
-          quantity: item.quantity
-        }))
-      };
+  const formatCurrency = formatPrice;
 
-      await axios.post(`${API_BASE_URL}public-orders/`, payload);
-      setCheckoutSuccess(true);
-      clearCart();
-      setCheckoutForm({ customer_name: '', phone_number: '', email: '', location: '' });
-      setTimeout(() => {
-        setCheckoutSuccess(false);
-        setCheckoutOpen(false);
-        setCartOpen(false);
-      }, 3000);
-    } catch (err) {
-      console.error('Checkout failed:', err);
-      alert('فشل إرسال الطلب، يرجى المحاولة مرة أخرى.');
-    } finally {
-      setCheckoutLoading(false);
-    }
-  };
-
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val) + ' ج.س';
-  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface-950 text-surface-200">
         <Loader2 className="w-10 h-10 text-primary-500 animate-spin mb-4" />
         <p className="text-sm font-semibold text-surface-400">جاري تحميل دليل قطع الغيار...</p>
+      </div>
+    );
+  }
+
+  if (metadataError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-surface-950 text-surface-200 px-6 text-center" dir="rtl">
+        <AlertTriangle className="w-10 h-10 text-warning-400" />
+        <p className="text-sm font-semibold">{metadataError}</p>
+        <button
+          onClick={fetchMetadata}
+          className="flex items-center gap-2 h-10 px-5 rounded-xl bg-primary-600 text-white text-xs font-bold hover:bg-primary-500 cursor-pointer"
+        >
+          <RefreshCw className="w-4 h-4" />
+          إعادة المحاولة
+        </button>
       </div>
     );
   }
@@ -238,25 +230,27 @@ export default function FilterPage() {
 
             {/* Keyword Search text input */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-surface-300">بحث بالكلمات المفتاحية</label>
+              <label htmlFor="shop-search" className="block text-xs font-semibold text-surface-300">بحث بالكلمات المفتاحية</label>
               <div className="relative">
                 <Search className="absolute right-3 top-3 w-4 h-4 text-surface-550" />
                 <input
+                  id="shop-search"
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-3 pr-9 py-2 bg-surface-950/60 border border-white/10 text-white rounded-xl text-xs focus:border-primary-500 transition-colors h-10"
-                  placeholder="اسم القطعة أو الرقم..."
+                  placeholder="اسم القطعة أو الرقم أو السيارة..."
                 />
               </div>
             </div>
 
             {/* Category selection list/dropdown */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-surface-300">تصنيف الأقسام (الأقسام)</label>
+              <label htmlFor="shop-category" className="block text-xs font-semibold text-surface-300">تصنيف الأقسام (الأقسام)</label>
               <div className="relative">
                 <Layers className="absolute right-3 top-3 w-4 h-4 text-surface-550" />
                 <select
+                  id="shop-category"
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full pl-3 pr-9 py-2 bg-surface-950/80 border border-white/10 text-white rounded-xl text-xs focus:border-primary-500 transition-colors h-10 appearance-none cursor-pointer"
@@ -274,10 +268,11 @@ export default function FilterPage() {
 
             {/* Car Model compatibility selection list/dropdown */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-surface-300">موديلات السيارات المتوافقة</label>
+              <label htmlFor="shop-car" className="block text-xs font-semibold text-surface-300">موديلات السيارات المتوافقة</label>
               <div className="relative">
                 <Car className="absolute right-3 top-3 w-4 h-4 text-surface-550" />
                 <select
+                  id="shop-car"
                   value={selectedCarModel}
                   onChange={(e) => setSelectedCarModel(e.target.value)}
                   className="w-full pl-3 pr-9 py-2 bg-surface-950/80 border border-white/10 text-white rounded-xl text-xs focus:border-primary-500 transition-colors h-10 appearance-none cursor-pointer"
@@ -295,7 +290,7 @@ export default function FilterPage() {
 
             {/* Quick stats in filters */}
             <div className="pt-4 border-t border-white/5 text-[10px] text-surface-450 space-y-1 font-semibold">
-              <p>النتائج المطابقة: {parts.length} قطعة غيار متوفرة</p>
+              <p>النتائج المطابقة: {totalCount} قطعة غيار</p>
             </div>
           </div>
 
@@ -307,6 +302,18 @@ export default function FilterPage() {
               <div className="glass-card py-24 flex flex-col items-center justify-center text-center">
                 <Loader2 className="w-10 h-10 text-primary-500 animate-spin mb-4" />
                 <p className="text-xs text-surface-450 font-bold">جاري تحديث قائمة المنتجات...</p>
+              </div>
+            ) : partsError && parts.length === 0 ? (
+              <div className="glass-card py-20 px-6 flex flex-col items-center justify-center text-center space-y-4">
+                <AlertTriangle className="w-10 h-10 text-warning-400" />
+                <p className="text-sm font-bold text-white">{partsError}</p>
+                <button
+                  onClick={fetchFirstPage}
+                  className="flex items-center gap-2 h-10 px-6 rounded-xl bg-primary-600 text-white text-xs font-semibold hover:bg-primary-500 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  إعادة المحاولة
+                </button>
               </div>
             ) : parts.length === 0 ? (
               
@@ -360,6 +367,14 @@ export default function FilterPage() {
                       <div className="space-y-2">
                         <div>
                           <h3 className="text-xs md:text-sm font-extrabold text-white group-hover:text-primary-400 transition-colors line-clamp-1">{part.name}</h3>
+                          {(part.brand || part.quality_grade_display) && (
+                            <p className="mt-1 flex items-center gap-1.5 text-[10px] text-surface-400">
+                              {part.brand && <span>{part.brand}</span>}
+                              {part.quality_grade_display && (
+                                <span className="px-1.5 py-0.5 rounded bg-accent-500/15 text-accent-300 font-semibold">{part.quality_grade_display}</span>
+                              )}
+                            </p>
+                          )}
                         </div>
 
                         {/* Description snippet */}
@@ -418,6 +433,22 @@ export default function FilterPage() {
                 ))}
               </div>
             )}
+
+            {!partsLoading && parts.length > 0 && (nextPage || partsError) && (
+              <div className="flex flex-col items-center gap-2">
+                {partsError && <p className="text-xs text-danger-400">{partsError}</p>}
+                {nextPage && (
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="flex items-center gap-2 h-10 px-6 rounded-xl bg-surface-900 border border-white/10 text-white text-xs font-semibold hover:bg-surface-800 transition-colors cursor-pointer disabled:opacity-60"
+                  >
+                    {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+                    تحميل المزيد ({parts.length} من {totalCount})
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
         </div>
@@ -452,7 +483,7 @@ export default function FilterPage() {
                   <ShoppingCart className="w-5 h-5 text-primary-400" />
                   <h3 className="font-extrabold text-sm md:text-base">سلة التسوق ({cartCount})</h3>
                 </div>
-                <button onClick={() => setCartOpen(false)} className="text-gray-400 hover:text-white cursor-pointer">
+                <button onClick={() => setCartOpen(false)} aria-label="إغلاق السلة" className="text-gray-400 hover:text-white cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -489,7 +520,7 @@ export default function FilterPage() {
                           <span className="text-xs font-extrabold text-danger-600 font-mono">{formatCurrency(item.part.selling_price * item.quantity)}</span>
                         </div>
                       </div>
-                      <button onClick={() => removeFromCart(item.part.id)} className="absolute top-2 left-2 text-gray-400 hover:text-danger-500 cursor-pointer">
+                      <button onClick={() => removeFromCart(item.part.id)} aria-label={`حذف ${item.part.name} من السلة`} className="absolute top-2 left-2 text-gray-400 hover:text-danger-500 cursor-pointer">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -521,105 +552,7 @@ export default function FilterPage() {
 
       {/* ──── Checkout Modal ──── */}
       {checkoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" dir="rtl">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-slate-800 relative animate-scale-in">
-            <button onClick={() => setCheckoutOpen(false)} className="absolute top-4 left-4 text-gray-400 hover:text-slate-800 cursor-pointer">
-              <X className="w-5 h-5" />
-            </button>
-            
-            <div className="text-center space-y-2 mb-6">
-              <div className="w-12 h-12 rounded-full bg-primary-100 border border-primary-200 text-primary-600 flex items-center justify-center mx-auto">
-                <ShoppingBag className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800">إتمام طلب الشراء</h3>
-              <p className="text-[11px] text-gray-500">الرجاء إدخال معلوماتك لتأكيد حجز قطع الغيار وتسهيل التواصل معك.</p>
-            </div>
-
-            {checkoutSuccess ? (
-              <div className="p-6 text-center space-y-3 bg-green-50 border border-green-150 rounded-2xl animate-fade-in text-green-700">
-                <CheckCircle className="w-12 h-12 mx-auto animate-bounce text-green-500" />
-                <h4 className="text-sm font-bold">تم إرسال طلبك بنجاح!</h4>
-                <p className="text-xs">شكراً لك، تم استلام طلبك وسيتم إشعار الإدارة فوراً والتواصل معك قريباً.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">الاسم الكامل *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.customer_name}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none h-10 transition-colors"
-                    placeholder="اسمك الكامل"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">رقم الهاتف الجوال *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.phone_number}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none h-10 transition-colors"
-                    placeholder="رقم الهاتف للتواصل أو الواتساب"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">البريد الإلكتروني (اختياري)</label>
-                  <input
-                    type="email"
-                    value={checkoutForm.email}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none h-10 transition-colors"
-                    placeholder="name@example.com"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">العنوان / المنطقة *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.location}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, location: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none h-10 transition-colors"
-                    placeholder="مثال: الرياض، الخرطوم، بحري..."
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-3 border-t border-gray-100 pt-3">
-                    <span>المجموع النهائي:</span>
-                    <span className="text-danger-600 text-sm font-black font-mono">{formatCurrency(cartTotal)}</span>
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={checkoutLoading}
-                    className="w-full py-3 rounded-xl bg-danger-600 hover:bg-danger-700 hover:shadow-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer leading-normal disabled:opacity-50"
-                  >
-                    {checkoutLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جاري معالجة الطلب...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        <span>إرسال وتأكيد الطلب الآن</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+        <CheckoutModal theme="default" onClose={() => setCheckoutOpen(false)} onOrdered={() => setCartOpen(false)} />
       )}
     </div>
   );

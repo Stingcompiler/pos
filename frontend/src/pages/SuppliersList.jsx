@@ -1,16 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import Pagination from '../components/sales/Pagination';
+import useDebouncedValue from '../components/sales/useDebouncedValue';
+import usePagedList from '../hooks/usePagedList';
 import {
   Truck, Plus, Search, Phone, Mail, MapPin, User,
   Loader2, AlertCircle, Eye, RefreshCw
 } from 'lucide-react';
 
+const PAGE_SIZE = 24;
+
 export default function SuppliersList() {
-  const navigate = useNavigate();
-  const [suppliers, setSuppliers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  // البحث في الخادم: كان يصفّي الصفحة المحمّلة فقط فلا يجد موردي الصفحات التالية.
+  const debouncedSearch = useDebouncedValue(searchQuery.trim());
+  const {
+    items: suppliers, count, page, setPage, loading, error: listError, reload: fetchSuppliers,
+  } = usePagedList('suppliers/', { pageSize: PAGE_SIZE, params: { search: debouncedSearch } });
   const [error, setError] = useState('');
 
   // Modal State
@@ -21,24 +28,6 @@ export default function SuppliersList() {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  const fetchSuppliers = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await api.get('/suppliers/');
-      setSuppliers(res.data.results || res.data);
-    } catch (err) {
-      console.error(err);
-      setError('فشل في تحميل قائمة الموردين. الرجاء المحاولة مرة أخرى.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
 
   const handleCreateSupplier = async (e) => {
     e.preventDefault();
@@ -59,8 +48,8 @@ export default function SuppliersList() {
         is_active: true
       };
 
-      const res = await api.post('/suppliers/', payload);
-      setSuppliers([res.data, ...suppliers]);
+      await api.post('/suppliers/', payload);
+      fetchSuppliers();
       
       // Reset Form & Close Modal
       setCompanyName('');
@@ -77,15 +66,8 @@ export default function SuppliersList() {
     }
   };
 
-  // Live filter
-  const filteredSuppliers = suppliers.filter(sup => {
-    const q = searchQuery.toLowerCase();
-    return (
-      sup.company_name.toLowerCase().includes(q) ||
-      (sup.contact_person && sup.contact_person.toLowerCase().includes(q)) ||
-      sup.phone_number.includes(q)
-    );
-  });
+  const filteredSuppliers = suppliers;
+  const loadError = listError ? 'فشل في تحميل قائمة الموردين. الرجاء المحاولة مرة أخرى.' : '';
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -132,7 +114,7 @@ export default function SuppliersList() {
           />
         </div>
         <div className="text-xs text-surface-400 font-mono">
-          إجمالي المسجلين: {filteredSuppliers.length} مورد
+          إجمالي المسجلين: {count} مورد
         </div>
       </div>
 
@@ -142,11 +124,11 @@ export default function SuppliersList() {
           <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
           <p className="text-sm text-surface-400">جاري تحميل سجلات الموردين...</p>
         </div>
-      ) : error ? (
+      ) : loadError ? (
         <div className="glass-card p-6 border-danger-500/10 flex flex-col items-center justify-center text-center space-y-3">
           <AlertCircle className="w-12 h-12 text-danger-500 animate-pulse" />
           <h3 className="text-white font-bold">حدث خطأ أثناء تحميل البيانات</h3>
-          <p className="text-sm text-surface-400 max-w-md">{error}</p>
+          <p className="text-sm text-surface-400 max-w-md">{loadError}</p>
           <button
             onClick={fetchSuppliers}
             className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg text-xs transition"
@@ -157,7 +139,7 @@ export default function SuppliersList() {
       ) : filteredSuppliers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <Truck className="w-16 h-16 text-surface-700 animate-bounce" />
-          <h3 className="text-white font-bold">لا يوجد موردون مسجلون</h3>
+          <h3 className="text-white font-bold">{debouncedSearch ? 'لا نتائج لهذا البحث' : 'لا يوجد موردون مسجلون'}</h3>
           <p className="text-sm text-surface-500 max-w-sm">
             قم بإضافة المورد الأول للبدء بتسجيل صفقات توريد قطع الغيار.
           </p>
@@ -232,6 +214,8 @@ export default function SuppliersList() {
           ))}
         </div>
       )}
+
+      <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} disabled={loading} noun="مورد" />
 
       {/* Add New Supplier Modal */}
       {showModal && (

@@ -1,12 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
+import Pagination from '../components/sales/Pagination';
+import usePagedList from '../hooks/usePagedList';
+import { useAuth } from '../context/useAuth';
 import { FolderOpen, Plus, Edit3, Trash2, X, Loader2, Save, Image as ImageIcon } from 'lucide-react';
+
+const PAGE_SIZE = 24;
 
 export default function Categories() {
   const { user } = useAuth();
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    items: categories, count, page, setPage, loading, reload: loadCategories,
+  } = usePagedList('categories/', { pageSize: PAGE_SIZE });
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [name, setName] = useState('');
@@ -18,16 +23,6 @@ export default function Categories() {
 
   const canEdit = user?.role === 'manager' || user?.role === 'supervisor';
   const canDelete = user?.role === 'manager';
-
-  useEffect(() => { loadCategories(); }, []);
-
-  const loadCategories = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('categories/');
-      setCategories(res.data.results || res.data);
-    } catch {} finally { setLoading(false); }
-  };
 
   const openCreate = () => {
     setEditing(null);
@@ -154,6 +149,10 @@ export default function Categories() {
             </div>
           ))
         )}
+      </div>
+
+      <div className="mt-4">
+        <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} disabled={loading} noun="فئة" />
       </div>
 
       {/* Modal */}

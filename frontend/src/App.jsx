@@ -1,33 +1,50 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
+import { AuthProvider } from './context/AuthProvider';
+import { CartProvider } from './context/CartProvider';
+import { useAuth } from './context/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import LandingPage from './pages/LandingPage';
-import ProductDetails from './pages/ProductDetails';
-import FilterPage from './pages/FilterPage';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Orders from './pages/Orders';
-import POS from './pages/POS';
-import SpareParts from './pages/SpareParts';
-import Categories from './pages/Categories';
-import CarModels from './pages/CarModels';
-import Invoices from './pages/Invoices';
-import Users from './pages/Users';
-import Settings from './pages/Settings';
-import Messages from './pages/Messages';
-import Reports from './pages/Reports';
-import SuppliersList from './pages/SuppliersList';
-import SingleSupplier from './pages/SingleSupplier';
-import Customers from './pages/Customers';
-import CustomerDetail from './pages/CustomerDetail';
 import PWAInstallBadge from './components/PWAInstallBadge';
+import HomeRoute from './components/HomeRoute';
+import { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
+
+// الصفحات تُحمَّل عند فتحها: زائر المتجر لا ينزّل شاشات الإدارة، والكاشير لا
+// ينزّل المتجر — فرق ملموس على شبكات الجوال البطيئة.
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const ProductDetails = lazy(() => import('./pages/ProductDetails'));
+const FilterPage = lazy(() => import('./pages/FilterPage'));
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Orders = lazy(() => import('./pages/Orders'));
+const POS = lazy(() => import('./pages/POS'));
+const SpareParts = lazy(() => import('./pages/SpareParts'));
+const Categories = lazy(() => import('./pages/Categories'));
+const CarModels = lazy(() => import('./pages/CarModels'));
+const Invoices = lazy(() => import('./pages/Invoices'));
+const Users = lazy(() => import('./pages/Users'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Reports = lazy(() => import('./pages/Reports'));
+const SuppliersList = lazy(() => import('./pages/SuppliersList'));
+const SingleSupplier = lazy(() => import('./pages/SingleSupplier'));
+const Customers = lazy(() => import('./pages/Customers'));
+const CustomerDetail = lazy(() => import('./pages/CustomerDetail'));
+const DailyClose = lazy(() => import('./pages/DailyClose'));
+const Transfers = lazy(() => import('./pages/Transfers'));
+const StockCounts = lazy(() => import('./pages/StockCounts'));
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-surface-950">
+      <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+    </div>
+  );
+}
 
 function RootRedirect() {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-surface-950"><Loader2 className="w-8 h-8 text-primary-500 animate-spin" /></div>;
+  if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
   return user.role === 'employee' ? <Navigate to="/pos" replace /> : <Navigate to="/dashboard" replace />;
 }
@@ -37,9 +54,11 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public customer landing page */}
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/store" element={<LandingPage />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/shop" element={<FilterPage />} />
             <Route path="/inventory" element={<FilterPage />} />
@@ -66,6 +85,9 @@ function App() {
                   <Route path="/dashboard/messages" element={<Messages />} />
                   <Route path="/dashboard/reports" element={<Reports />} />
                   <Route path="/dashboard/orders" element={<Orders />} />
+                  <Route path="/dashboard/daily-close" element={<DailyClose />} />
+                  <Route path="/dashboard/transfers" element={<Transfers />} />
+                  <Route path="/stock-counts" element={<StockCounts />} />
                 </Route>
 
                 {/* Manager only routes */}
@@ -78,6 +100,7 @@ function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
           <PWAInstallBadge />
         </CartProvider>
       </AuthProvider>

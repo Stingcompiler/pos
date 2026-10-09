@@ -1,54 +1,74 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import {
-  ShoppingCart, Clock, CheckCircle, XCircle, Phone, MessageSquare,
-  ChevronDown, ChevronUp, Loader2, Calendar, User, DollarSign, ExternalLink
+  ShoppingCart, Clock, CheckCircle, XCircle, MessageSquare,
+  ChevronDown, ChevronUp, Loader2, DollarSign, Inbox, ReceiptText
 } from 'lucide-react';
+import { DATE_LOCALE } from '../utils/dates';
+import { apiErrorMessage } from '../utils/api';
+import SellOrderModal from '../components/orders/SellOrderModal';
+import Pagination from '../components/sales/Pagination';
+import usePagedList from '../hooks/usePagedList';
+
+const PAGE_SIZE = 20;
+const STATUS_FILTERS = [
+  { value: '', label: 'كل الطلبات' },
+  { value: 'pending', label: 'قيد الانتظار' },
+  { value: 'confirmed', label: 'مؤكدة' },
+  { value: 'completed', label: 'تم البيع' },
+  { value: 'cancelled', label: 'ملغاة' },
+];
+
+// الطلب المبيع أُغلق بفاتورته: لا تغيير لحالته بعدها (الإرجاع مرتجع على الفاتورة).
+const canSell = (order) => order.status === 'pending' || order.status === 'confirmed';
 
 export default function Orders() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
+  const {
+    items: orders, setItems: setOrders, count, page, setPage, loading, error: listError,
+  } = usePagedList('public-orders/', { pageSize: PAGE_SIZE, params: { status: statusFilter } });
+  const [summary, setSummary] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [sellingOrder, setSellingOrder] = useState(null);
 
-  useEffect(() => {
-    loadOrders();
+  // البطاقات من كل الطلبات لا من الصفحة المعروضة.
+  const loadSummary = useCallback(() => {
+    api.get('public-orders/summary/').then(({ data }) => setSummary(data)).catch(() => {});
   }, []);
 
-  const loadOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('public-orders/');
-      // Django returns order records
-      setOrders(res.data.results || res.data);
-    } catch (err) {
-      console.error('Failed to load orders:', err);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
+
+  const patchOrder = (orderId, changes) => {
+    setOrders((prev) => prev.map((ord) => (ord.id === orderId ? { ...ord, ...changes } : ord)));
+    setSelectedOrder((prev) => (prev && prev.id === orderId ? { ...prev, ...changes } : prev));
+  };
+
+  const handleSold = (invoice) => {
+    const order = sellingOrder;
+    setSellingOrder(null);
+    patchOrder(order.id, { status: 'completed', invoice: invoice.id });
+    loadSummary();
+    setErrorMessage('');
+    setSuccessMessage(`بِيع الطلب #${order.id} بالفاتورة #${invoice.id}؛ تجدها في صفحة الفواتير للطباعة.`);
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
     setUpdatingId(orderId);
     setErrorMessage('');
+    setSuccessMessage('');
     try {
-      const res = await api.patch(`public-orders/${orderId}/`, { status: newStatus });
-      
-      // Update local state
-      setOrders((prev) =>
-        prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
-      );
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder((prev) => ({ ...prev, status: newStatus }));
-      }
+      const { data } = await api.patch(`public-orders/${orderId}/`, { status: newStatus });
+      patchOrder(orderId, { status: data.status });
+      loadSummary();
     } catch (err) {
-      console.error('Failed to update status:', err);
-      const errMsg = err.response?.data?.non_field_errors?.[0] || 
-                     err.response?.data?.status?.[0] || 
-                     'عذراً، فشل تحديث حالة الطلب. قد يكون السبب نقص كميات المخزون المتوفرة.';
-      setErrorMessage(errMsg);
-      alert(errMsg);
+      setErrorMessage(apiErrorMessage(
+        err, 'عذراً، فشل تحديث حالة الطلب. قد يكون السبب نقص كميات المخزون المتوفرة.',
+      ));
     } finally {
       setUpdatingId(null);
     }
@@ -69,6 +89,13 @@ export default function Orders() {
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-success-500/10 text-success-400 border border-success-500/20">
             <CheckCircle className="w-3.5 h-3.5" />
             تم التأكيد
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary-500/10 text-primary-300 border border-primary-500/20">
+            <ReceiptText className="w-3.5 h-3.5" />
+            تم البيع
           </span>
         );
       case 'cancelled':
@@ -97,13 +124,10 @@ export default function Orders() {
     return `https://wa.me/${cleanPhone}?text=${message}`;
   };
 
-  // Stats
-  const pendingOrders = orders.filter((o) => o.status === 'pending');
-  const confirmedOrders = orders.filter((o) => o.status === 'confirmed');
-  const cancelledOrders = orders.filter((o) => o.status === 'cancelled');
-  const totalRevenue = confirmedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+  const counts = summary?.counts || {};
+  const totalRevenue = Number(summary?.completed_total || 0);
 
-  if (loading) {
+  if (loading && !orders.length && !listError) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
@@ -124,11 +148,26 @@ export default function Orders() {
         </div>
       </div>
 
+      {/* خطأ آخر تحديث للحالة — كان يُعرض في alert فقط دون أي أثر مرئي دائم */}
+      {errorMessage && (
+        <div className="flex items-start gap-2 p-4 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">
+          <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {successMessage && (
+        <div role="status" className="flex items-start gap-2 p-4 rounded-xl bg-success-500/10 border border-success-500/20 text-success-400 text-sm">
+          <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
           <div>
-            <p className="text-2xl font-bold text-white mb-1">{pendingOrders.length}</p>
+            <p className="text-2xl font-bold text-white mb-1">{counts.pending ?? 0}</p>
             <p className="text-xs text-surface-400">طلبات قيد الانتظار</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-warning-500/10 border border-warning-500/20 flex items-center justify-center text-warning-400">
@@ -138,8 +177,8 @@ export default function Orders() {
 
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
           <div>
-            <p className="text-2xl font-bold text-white mb-1">{confirmedOrders.length}</p>
-            <p className="text-xs text-surface-400">طلبات مؤكدة</p>
+            <p className="text-2xl font-bold text-white mb-1">{counts.confirmed ?? 0}</p>
+            <p className="text-xs text-surface-400">مؤكدة بانتظار البيع</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-success-500/10 border border-success-500/20 flex items-center justify-center text-success-400">
             <CheckCircle className="w-5 h-5" />
@@ -148,7 +187,7 @@ export default function Orders() {
 
         <div className="glass-card p-5 flex items-center justify-between border border-white/5">
           <div>
-            <p className="text-2xl font-bold text-white mb-1">{cancelledOrders.length}</p>
+            <p className="text-2xl font-bold text-white mb-1">{counts.cancelled ?? 0}</p>
             <p className="text-xs text-surface-400">طلبات ملغاة</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-danger-500/10 border border-danger-500/20 flex items-center justify-center text-danger-400">
@@ -161,7 +200,7 @@ export default function Orders() {
             <p className="text-lg font-bold text-accent-400 truncate mb-1">
               {formatCurrency(totalRevenue)}
             </p>
-            <p className="text-xs text-surface-400">إجمالي إيرادات المؤكدة</p>
+            <p className="text-xs text-surface-400">مبيعات الطلبات (بفواتير)</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-accent-500/10 border border-accent-500/20 flex items-center justify-center text-accent-400">
             <DollarSign className="w-5 h-5" />
@@ -176,12 +215,30 @@ export default function Orders() {
             <ShoppingCart className="w-4 h-4 text-primary-400" />
             سجل طلبات الزبائن
           </h2>
-          <span className="text-[10px] text-surface-450 font-mono">العدد الإجمالي: {orders.length}</span>
+          <label className="flex items-center gap-2 text-xs text-surface-400">
+            <span className="sr-only">تصفية حسب الحالة</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold"
+            >
+              {STATUS_FILTERS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
+        {listError && (
+          <div role="alert" className="m-4 p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">
+            {apiErrorMessage(listError, 'تعذّر تحميل الطلبات.')}
+          </div>
+        )}
+
         {orders.length === 0 ? (
-          <div className="text-center py-16 text-surface-500 text-sm">
-            لا توجد طلبات خارجية واردة حالياً 📥
+          <div className="flex flex-col items-center gap-3 text-center py-16 text-surface-500 text-sm">
+            <Inbox className="w-12 h-12 opacity-30" />
+            <span>{statusFilter ? 'لا توجد طلبات بهذه الحالة' : 'لا توجد طلبات خارجية واردة حالياً'}</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -206,7 +263,7 @@ export default function Orders() {
                     <td className="p-4 text-xs text-surface-300">{order.location || 'غير محدد'}</td>
                     <td className="p-4 font-mono">{order.phone_number}</td>
                     <td className="p-4 text-xs text-surface-400">
-                      {new Date(order.created_at).toLocaleString('ar-SA')}
+                      {new Date(order.created_at).toLocaleString(DATE_LOCALE)}
                     </td>
                     <td className="p-4 font-bold text-accent-400">
                       {formatCurrency(order.total_amount)}
@@ -229,15 +286,28 @@ export default function Orders() {
 
                         {/* Status Quick Action Dropdown */}
                         <select
-                          disabled={updatingId === order.id}
+                          aria-label={`حالة الطلب #${order.id}`}
+                          disabled={updatingId === order.id || order.status === 'completed'}
                           value={order.status}
                           onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
                           className="px-2 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-primary-500 cursor-pointer disabled:opacity-50"
                         >
                           <option value="pending">قيد الانتظار</option>
                           <option value="confirmed">تأكيد الطلب</option>
+                          <option value="completed" disabled>تم البيع</option>
                           <option value="cancelled">إلغاء الطلب</option>
                         </select>
+
+                        {canSell(order) && (
+                          <button
+                            type="button"
+                            onClick={() => { setSuccessMessage(''); setSellingOrder(order); }}
+                            className="px-3 py-1.5 rounded-lg gradient-primary text-white text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                          >
+                            <ReceiptText className="w-3.5 h-3.5" aria-hidden="true" />
+                            بيع
+                          </button>
+                        )}
 
                         {/* WhatsApp CTA */}
                         <a
@@ -257,7 +327,14 @@ export default function Orders() {
             </table>
           </div>
         )}
+        <div className="px-5 pb-4">
+          <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} disabled={loading} noun="طلب" />
+        </div>
       </div>
+
+      {sellingOrder && (
+        <SellOrderModal order={sellingOrder} onClose={() => setSellingOrder(null)} onSuccess={handleSold} />
+      )}
 
       {/* Accordion / Details display */}
       {selectedOrder && (
@@ -286,7 +363,7 @@ export default function Orders() {
             
             <div className="space-y-1 bg-surface-950/40 p-4 rounded-xl border border-white/5">
               <span className="text-[10px] text-surface-500 font-bold block">تاريخ الإرسال والقيمة</span>
-              <p className="text-xs">{new Date(selectedOrder.created_at).toLocaleString('ar-SA')}</p>
+              <p className="text-xs">{new Date(selectedOrder.created_at).toLocaleString(DATE_LOCALE)}</p>
               <p className="font-extrabold text-accent-400 text-base mt-1">
                 {formatCurrency(selectedOrder.total_amount)}
               </p>
@@ -300,16 +377,20 @@ export default function Orders() {
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-xs text-surface-400">تغيير سريع:</span>
                 <select
-                  disabled={updatingId === selectedOrder.id}
+                  disabled={updatingId === selectedOrder.id || selectedOrder.status === 'completed'}
                   value={selectedOrder.status}
                   onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value)}
                   className="px-2 py-1 bg-surface-900 border border-white/10 text-white text-xs rounded outline-none cursor-pointer"
                 >
                   <option value="pending">قيد الانتظار</option>
                   <option value="confirmed">تأكيد الطلب</option>
+                  <option value="completed" disabled>تم البيع</option>
                   <option value="cancelled">إلغاء الطلب</option>
                 </select>
               </div>
+              {selectedOrder.invoice && (
+                <p className="mt-2 text-xs text-primary-300">فاتورة البيع: #{selectedOrder.invoice}</p>
+              )}
             </div>
           </div>
 

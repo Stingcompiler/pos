@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
+import BrandMark from './BrandMark';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -9,12 +10,14 @@ import {
   FileText,
   Users,
   LogOut,
-  Wrench,
   ChevronLeft,
   ChevronRight,
   Settings,
   Mail,
   Truck,
+  Wallet,
+  Landmark,
+  ClipboardList,
 } from 'lucide-react';
 
 const menuItems = [
@@ -59,6 +62,24 @@ const menuItems = [
     icon: Users,
     path: '/customers',
     roles: ['manager', 'supervisor', 'employee'],
+  },
+  {
+    label: 'إقفال اليومية',
+    icon: Wallet,
+    path: '/dashboard/daily-close',
+    roles: ['manager', 'supervisor'],
+  },
+  {
+    label: 'مطابقة التحويلات',
+    icon: Landmark,
+    path: '/dashboard/transfers',
+    roles: ['manager', 'supervisor'],
+  },
+  {
+    label: 'الجرد',
+    icon: ClipboardList,
+    path: '/stock-counts',
+    roles: ['manager', 'supervisor'],
   },
   {
     label: 'المستخدمون',
@@ -130,12 +151,10 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
     >
       {/* Header */}
       <div className="p-5 flex items-center gap-3 border-b border-white/5">
-        <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0">
-          <Wrench className="w-5 h-5 text-white" />
-        </div>
+        <BrandMark className="w-10 h-10 flex-shrink-0 rounded-xl ring-1 ring-white/10" />
         {(!collapsed || isOpen) && (
           <div className="animate-fade-in overflow-hidden">
-            <h1 className="text-base font-bold text-white whitespace-nowrap">قطع الغيار</h1>
+            <h1 className="text-base font-bold text-white whitespace-nowrap">اسبير</h1>
             <p className="text-xs text-surface-400 whitespace-nowrap">نظام الإدارة</p>
           </div>
         )}

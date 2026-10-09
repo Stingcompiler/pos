@@ -1,0 +1,84 @@
+# ─────────────────────────────────────────────────────────────
+# Python / Django
+# ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+
+# Packaging / builds
+build/
+dist/
+develop-eggs/
+eggs/
+sdist/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ─────────────────────────────────────────────────────────────
+# Django runtime artifacts
+# ─────────────────────────────────────────────────────────────
+*.log
+db.sqlite3
+db.sqlite3-journal
+db.sqlite3-wal
+db.sqlite3-shm
+/staticfiles/
+backend/staticfiles/
+local_settings.py
+
+# ─────────────────────────────────────────────────────────────
+# Secrets — NEVER commit these
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.secret_key
+backend/.secret_key
+*.pem
+*.key
+
+# ─────────────────────────────────────────────────────────────
+# Node / Vite / Frontend
+# ─────────────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dev-dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+
+# ─────────────────────────────────────────────────────────────
+# Editors / OS
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# ─────────────────────────────────────────────────────────────
+# Test / coverage
+# ─────────────────────────────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/

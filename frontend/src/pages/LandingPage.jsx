@@ -1,36 +1,63 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import * as Icons from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useCart } from '../context/CartContext';
+import {
+  AlertCircle, AtSign, Camera, Car, CheckCircle, CheckSquare, FolderOpen, Globe, Info, Layers,
+  Loader2, Mail, MapPin, Menu, MessageCircle, MessageSquare, Package, Phone, Send, ShieldCheck,
+  ShoppingBag, ShoppingCart, ThumbsUp, Trash2, Wrench, X,
+} from 'lucide-react';
 
-const API_BASE_URL = 'https://missingcars.pythonanywhere.com/api/';
-
-const getImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const apiBase = 'https://missingcars.pythonanywhere.com/api/';
-  const backendBase = apiBase.replace(/\/api\/?$/, '');
-  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+// استيراد المكتبة كاملة (import *) كان يضيف كل أيقونات lucide (≈620 KB) لحزمة
+// المتجر العام. نستورد ما تستخدمه الصفحة فقط.
+const Icons = {
+  AlertCircle, Car, CheckCircle, CheckSquare, FolderOpen, Info, Layers, Loader2, Mail, Menu,
+  MessageSquare, Package, Phone, Send, ShieldCheck, ShoppingBag, ShoppingCart, Trash2, Wrench, X,
 };
+
+// أيقونات وسائل التواصل بحسب الاسم المخزّن من صفحة الإعدادات. أيقونات العلامات
+// (فيسبوك، تويتر، انستغرام) غير موجودة في lucide الحالية، فلها بدائل معبّرة.
+const CONTACT_ICONS = {
+  Phone, Mail, MessageCircle, MapPin, Globe,
+  Facebook: ThumbsUp,
+  Twitter: AtSign,
+  Instagram: Camera,
+};
+import api from '../api/axios';
+import { getPublicSettings } from '../utils/publicSettings';
+import { mediaUrl } from '../api/media';
+import { useCart } from '../context/useCart';
+import CheckoutModal from '../components/shop/CheckoutModal';
+import BrandMark from '../components/BrandMark';
+
+// روابط الصور تُبنى مركزياً من مساعد الميديا الموحّد (بدون أي نطاق مكتوب).
+const getImageUrl = mediaUrl;
+
+// الصفحة الرئيسية تعرض عيّنة؛ الكتالوج الكامل مقسّم إلى صفحات في /shop.
+const PREVIEW_COUNT = 8;
+const FEATURED_LIMIT = 12;
+
+function CardSkeletons({ tall = false }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6" aria-hidden="true">
+      {Array.from({ length: 4 }, (_, index) => (
+        <div key={index} className={`rounded-2xl bg-gray-200/70 animate-pulse ${tall ? 'h-80' : 'h-52'}`} />
+      ))}
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { cart, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, cartTotal } = useCart();
+  const { cart, addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } = useCart();
 
   // ──── Cart & Checkout Drawer States ────
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutForm, setCheckoutForm] = useState({ customer_name: '', phone_number: '', email: '', location: '' });
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
 
 
 
   // ──── States ────
   const [settings, setSettings] = useState({
-    site_name: 'محل قطع الغيار',
+    site_name: 'اسبير',
     logo: '',
     hero_title: 'أفضل قطع الغيار لسيارتك',
     hero_subtitle: 'نوفر أفضل قطع الغيار الأصلية والمضمونة لكافة أنواع السيارات بأسعار منافسة.',
@@ -40,6 +67,8 @@ export default function LandingPage() {
   const [carModels, setCarModels] = useState([]);
   const [featuredParts, setFeaturedParts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [showAllCars, setShowAllCars] = useState(false);
 
   // ──── Mobile Menu State ────
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -51,35 +80,25 @@ export default function LandingPage() {
   const [formError, setFormError] = useState('');
 
   // ──── Fetch Branding & Featured Products ────
-  const fetchData = async () => {
-    try {
-      // Fetch settings & contact methods & lists
-      const settingsRes = await axios.get(`${API_BASE_URL}public/settings/`);
-      if (settingsRes.data.settings) {
-        setSettings(settingsRes.data.settings);
-      }
-      if (settingsRes.data.contact_methods) {
-        setContacts(settingsRes.data.contact_methods);
-      }
-      if (settingsRes.data.categories) {
-        setCategories(settingsRes.data.categories);
-      }
-      if (settingsRes.data.car_models) {
-        setCarModels(settingsRes.data.car_models);
-      }
-
-      // Fetch featured products
-      const partsRes = await axios.get(`${API_BASE_URL}public/featured-parts/`);
-      setFeaturedParts(partsRes.data);
-    } catch (err) {
-      console.error('Error fetching public landing data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // الطلبان معاً لا بالتتابع، والصفحة تُعرض فوراً بأقسام مؤقتة حتى تصل البيانات.
   useEffect(() => {
-    fetchData();
+    let active = true;
+    Promise.allSettled([
+      getPublicSettings(),
+      api.get('public/featured-parts/', { params: { limit: FEATURED_LIMIT } }),
+    ]).then(([settingsResult, partsResult]) => {
+      if (!active) return;
+      if (settingsResult.status === 'fulfilled') {
+        const data = settingsResult.value;
+        if (data.settings) setSettings(data.settings);
+        setContacts(data.contact_methods || []);
+        setCategories(data.categories || []);
+        setCarModels(data.car_models || []);
+      }
+      if (partsResult.status === 'fulfilled') setFeaturedParts(partsResult.value.data);
+      setLoading(false);
+    });
+    return () => { active = false; };
   }, []);
 
   // ──── Form Submission ────
@@ -96,7 +115,7 @@ export default function LandingPage() {
     }
 
     try {
-      await axios.post(`${API_BASE_URL}public/contact/`, form);
+      await api.post('public/contact/', form);
       setFormMsg('تم إرسال رسالتك بنجاح! سنتواصل معك في أقرب وقت ممكن.');
       setForm({ name: '', email: '', phone: '', message: '' });
     } catch {
@@ -106,45 +125,9 @@ export default function LandingPage() {
     }
   };
 
-  const handleCheckoutSubmit = async (e) => {
-    e.preventDefault();
-    if (!checkoutForm.customer_name.trim() || !checkoutForm.phone_number.trim()) {
-      alert('الرجاء تعبئة الاسم ورقم الهاتف لإكمال الطلب.');
-      return;
-    }
-    setCheckoutLoading(true);
-    try {
-      const payload = {
-        customer_name: checkoutForm.customer_name,
-        phone_number: checkoutForm.phone_number,
-        email: checkoutForm.email || null,
-        location: checkoutForm.location || null,
-        items: cart.map(item => ({
-          spare_part: item.part.id,
-          quantity: item.quantity
-        }))
-      };
-
-      await axios.post(`${API_BASE_URL}public-orders/`, payload);
-      setCheckoutSuccess(true);
-      clearCart();
-      setCheckoutForm({ customer_name: '', phone_number: '', email: '', location: '' });
-      setTimeout(() => {
-        setCheckoutSuccess(false);
-        setCheckoutOpen(false);
-        setCartOpen(false);
-      }, 3000);
-    } catch (err) {
-      console.error('Checkout failed:', err);
-      alert('فشل إرسال الطلب، يرجى المحاولة مرة أخرى.');
-    } finally {
-      setCheckoutLoading(false);
-    }
-  };
-
   // ──── Icon Mapper ────
   const getIconComponent = (iconName) => {
-    const Icon = Icons[iconName] || Icons.Phone;
+    const Icon = CONTACT_ICONS[iconName] || Phone;
     return <Icon className="w-5 h-5 text-primary-400 group-hover:scale-110 transition-transform duration-200" />;
   };
 
@@ -152,14 +135,8 @@ export default function LandingPage() {
     return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val) + ' ج.س';
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-surface-950">
-        <Icons.Loader2 className="w-10 h-10 text-primary-500 animate-spin mb-4" />
-        <p className="text-surface-400 text-sm font-semibold">جاري تحميل المعرض المميز...</p>
-      </div>
-    );
-  }
+  const visibleCategories = showAllCategories ? categories : categories.slice(0, PREVIEW_COUNT);
+  const visibleCars = showAllCars ? carModels : carModels.slice(0, PREVIEW_COUNT);
 
   return (
     <div className="min-h-screen bg-gray-50 text-slate-800 relative overflow-hidden select-none font-sans" dir="rtl">
@@ -177,9 +154,7 @@ export default function LandingPage() {
             {settings.logo ? (
               <img src={getImageUrl(settings.logo)} alt={settings.site_name} className="w-9 h-9 rounded-xl object-contain border border-white/10" />
             ) : (
-              <div className="w-9 h-9 rounded-xl bg-dal-red flex items-center justify-center shadow-md shadow-red-600/20">
-                <Icons.Wrench className="w-5 h-5 text-white" />
-              </div>
+              <BrandMark className="w-9 h-9 rounded-xl ring-1 ring-white/10" />
             )}
             <span className="font-bold text-white text-lg tracking-tight select-none">{settings.site_name}</span>
           </div>
@@ -239,11 +214,8 @@ export default function LandingPage() {
       {/* ──── SECTION 1: HERO SECTION ──── */}
       <section id="hero" className="relative w-full z-10 py-12 md:py-24 px-4 md:px-8 bg-gradient-to-b from-dal-dark to-slate-900 text-white border-b border-slate-950/20">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex-1 flex flex-col items-center md:items-start text-center md:text-right space-y-6"
+          <div
+            className="animate-fade-in flex-1 flex flex-col items-center md:items-start text-center md:text-right space-y-6"
           >
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-dal-sky/10 border border-dal-sky/25 text-dal-sky text-xs font-semibold animate-pulse">
               <Icons.CheckCircle className="w-3.5 h-3.5" />
@@ -272,20 +244,15 @@ export default function LandingPage() {
                 تواصل معنا
               </a>
             </div>
-          </motion.div>
+          </div>
 
           {/* Large decorative display for desktop (RTL brand identity layout) */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex-1 hidden md:flex items-center justify-center relative"
+          <div
+            className="animate-scale-in flex-1 hidden md:flex items-center justify-center relative"
           >
             <div className="w-72 h-72 rounded-full bg-dal-sky/10 absolute blur-3xl animate-pulse-soft" />
             <div className="glass-card p-8 border border-white/5 relative z-10 flex flex-col items-center gap-4 text-center max-w-sm">
-              <div className="w-16 h-16 rounded-2xl bg-dal-red flex items-center justify-center shadow-lg shadow-red-600/30">
-                <Icons.Wrench className="w-8 h-8 text-white animate-bounce" />
-              </div>
+              <BrandMark className="w-16 h-16 rounded-2xl ring-1 ring-white/10 shadow-lg" />
               <h3 className="text-lg font-black text-white">{settings.site_name}</h3>
               <p className="text-xs text-slate-350 leading-relaxed">تجد معنا كافة قطع غيار المحركات، الفرامل، الكهرباء والهيكل الخارجي بأعلى جودة مع كفالة شاملة.</p>
               <div className="flex items-center gap-2 text-xs text-dal-sky font-bold">
@@ -293,7 +260,7 @@ export default function LandingPage() {
                 معتمدة ومضمونة 100%
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -305,23 +272,21 @@ export default function LandingPage() {
             <p className="text-xs md:text-sm text-gray-500">تصفح الفئات المختلفة لقطع غيار السيارات لتصل إلى ما تريد</p>
           </div>
 
-          {categories.length === 0 ? (
+          {loading ? (
+            <CardSkeletons />
+          ) : categories.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-xs">لا توجد أقسام متوفرة حالياً</div>
           ) : (
             <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-6 md:pb-0 md:overflow-visible">
-              {categories.map((cat) => (
-                <motion.div
+              {visibleCategories.map((cat) => (
+                <div
                   key={cat.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4 }}
                   className="bg-white border border-gray-100 shadow-md rounded-2xl overflow-hidden group hover:border-dal-sky/40 transition-all duration-300 cursor-pointer flex flex-col min-w-full md:min-w-0 snap-center"
                   onClick={() => navigate(`/shop?category_id=${cat.id}`)}
                 >
                   <div className="h-32 md:h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative overflow-hidden border-b border-gray-100">
                     {cat.image ? (
-                      <img src={getImageUrl(cat.image)} alt={cat.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={getImageUrl(cat.image)} alt={cat.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <Icons.FolderOpen className="w-10 h-10 text-dal-sky opacity-60 group-hover:scale-110 transition-transform duration-300" />
                     )}
@@ -335,8 +300,19 @@ export default function LandingPage() {
                     </div>
                     <span className="text-[10px] font-semibold text-dal-sky block mt-2">{cat.parts_count || 0} منتج متوفر</span>
                   </div>
-                </motion.div>
+                </div>
               ))}
+            </div>
+          )}
+          {!loading && categories.length > PREVIEW_COUNT && (
+            <div className="text-center mt-8">
+              <button
+                type="button"
+                onClick={() => setShowAllCategories((value) => !value)}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-dal-dark text-xs md:text-sm font-bold hover:border-dal-sky hover:text-dal-sky transition-colors cursor-pointer"
+              >
+                {showAllCategories ? 'عرض أقل' : `عرض كل الأقسام (${categories.length})`}
+              </button>
             </div>
           )}
         </div>
@@ -350,24 +326,22 @@ export default function LandingPage() {
             <p className="text-xs md:text-sm text-gray-500">ندعم مجموعة واسعة من السيارات بمختلف الموديلات والسنوات</p>
           </div>
 
-          {carModels.length === 0 ? (
+          {loading ? (
+            <CardSkeletons />
+          ) : carModels.length === 0 ? (
             <div className="text-center py-10 text-gray-400 text-xs">لا توجد موديلات سيارات حالياً</div>
           ) : (
             /* Mobile: horizontal scroll | Desktop: responsive grid */
             <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-6 md:pb-0 md:overflow-visible">
-              {carModels.map((car) => (
-                <motion.div
+              {visibleCars.map((car) => (
+                <div
                   key={car.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4 }}
                   className="bg-white border border-gray-100 shadow-md rounded-2xl overflow-hidden flex flex-col group hover:border-dal-sky/40 transition-all duration-300 cursor-pointer min-w-full md:min-w-0 snap-center"
                   onClick={() => navigate(`/shop?car_model_id=${car.id}`)}
                 >
                   <div className="h-32 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative overflow-hidden border-b border-gray-100">
                     {car.image ? (
-                      <img src={getImageUrl(car.image)} alt={car.brand} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={getImageUrl(car.image)} alt={car.brand} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <Icons.Car className="w-12 h-12 text-dal-sky opacity-60 group-hover:scale-110 transition-transform duration-300" />
                     )}
@@ -381,8 +355,19 @@ export default function LandingPage() {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
+            </div>
+          )}
+          {!loading && carModels.length > PREVIEW_COUNT && (
+            <div className="text-center mt-8">
+              <button
+                type="button"
+                onClick={() => setShowAllCars((value) => !value)}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-dal-dark text-xs md:text-sm font-bold hover:border-dal-sky hover:text-dal-sky transition-colors cursor-pointer"
+              >
+                {showAllCars ? 'عرض أقل' : `عرض كل السيارات (${carModels.length})`}
+              </button>
             </div>
           )}
         </div>
@@ -396,7 +381,9 @@ export default function LandingPage() {
             <p className="text-xs md:text-sm text-gray-500">مجموعة من أفضل قطع الغيار المضمونة المتوفرة حالياً</p>
           </div>
 
-          {featuredParts.length === 0 ? (
+          {loading ? (
+            <CardSkeletons tall />
+          ) : featuredParts.length === 0 ? (
             <div className="bg-white border border-gray-100 shadow-md rounded-2xl py-20 flex flex-col items-center justify-center text-center">
               <Icons.Layers className="w-12 h-12 text-gray-400 opacity-50 mb-3" />
               <h4 className="text-base font-bold text-dal-dark">لا توجد منتجات مميزة معروضة حالياً</h4>
@@ -405,18 +392,14 @@ export default function LandingPage() {
           ) : (
             <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:gap-8 md:pb-0 md:overflow-visible">
               {featuredParts.map((part) => (
-                <motion.div
+                <div
                   key={part.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4 }}
                   className="bg-white border border-gray-100 shadow-md rounded-2xl flex flex-col group overflow-hidden hover:border-dal-sky/40 transition-all duration-300 min-w-full md:min-w-0 snap-center"
                 >
                   {/* Part Image display */}
                   <div className="h-48 w-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative border-b border-gray-100 overflow-hidden">
                     {part.image ? (
-                      <img src={getImageUrl(part.image)} alt={part.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={getImageUrl(part.image)} alt={part.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <Icons.Wrench className="w-12 h-12 text-dal-sky opacity-60 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
                     )}
@@ -493,8 +476,20 @@ export default function LandingPage() {
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
+            </div>
+          )}
+          {!loading && featuredParts.length > 0 && (
+            <div className="text-center mt-10">
+              <a
+                href="/shop"
+                onClick={(e) => { e.preventDefault(); navigate('/shop'); }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-dal-dark text-white text-xs md:text-sm font-bold hover:bg-slate-800 transition-colors"
+              >
+                <Icons.Package className="w-4 h-4" />
+                تصفح كل القطع
+              </a>
             </div>
           )}
         </div>
@@ -639,9 +634,7 @@ export default function LandingPage() {
       <footer className="bg-dal-dark border-t border-dal-dark py-10 relative z-10 text-center animate-fade-in">
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-4">
           <div className="flex justify-center items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-dal-red flex items-center justify-center shadow-md">
-              <Icons.Wrench className="w-3.5 h-3.5 text-white" />
-            </div>
+            <BrandMark className="w-7 h-7 rounded-lg ring-1 ring-white/10" />
             <span className="font-bold text-white text-sm tracking-tight">{settings.site_name}</span>
           </div>
           <p className="text-xs text-dal-silver">
@@ -749,105 +742,7 @@ export default function LandingPage() {
 
       {/* ──── Checkout Modal ──── */}
       {checkoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" dir="rtl">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-slate-800 relative animate-scale-in">
-            <button onClick={() => setCheckoutOpen(false)} className="absolute top-4 left-4 text-gray-400 hover:text-slate-800 cursor-pointer">
-              <Icons.X className="w-5 h-5" />
-            </button>
-            
-            <div className="text-center space-y-2 mb-6">
-              <div className="w-12 h-12 rounded-full bg-dal-sky/10 border border-dal-sky/20 text-dal-sky flex items-center justify-center mx-auto">
-                <Icons.ShoppingBag className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800">إتمام طلب الشراء</h3>
-              <p className="text-[11px] text-gray-500">الرجاء إدخال معلوماتك لتأكيد حجز قطع الغيار وتسهيل التواصل معك.</p>
-            </div>
-
-            {checkoutSuccess ? (
-              <div className="p-6 text-center space-y-3 bg-green-50 border border-green-150 rounded-2xl animate-fade-in text-green-700">
-                <Icons.CheckCircle className="w-12 h-12 mx-auto animate-bounce text-green-500" />
-                <h4 className="text-sm font-bold">تم إرسال طلبك بنجاح!</h4>
-                <p className="text-xs">شكراً لك، تم استلام طلبك وسيتم إشعار الإدارة فوراً والتواصل معك قريباً.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">الاسم الكامل *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.customer_name}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="اسمك الكامل"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">رقم الهاتف الجوال *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.phone_number}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="رقم الهاتف للتواصل أو الواتساب"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">البريد الإلكتروني (اختياري)</label>
-                  <input
-                    type="email"
-                    value={checkoutForm.email}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="name@example.com"
-                    dir="ltr"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">العنوان / المنطقة *</label>
-                  <input
-                    type="text"
-                    required
-                    value={checkoutForm.location}
-                    onChange={(e) => setCheckoutForm({ ...checkoutForm, location: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white border border-gray-200 text-slate-800 text-xs focus:border-dal-sky focus:ring-1 focus:ring-dal-sky outline-none h-10 transition-colors"
-                    placeholder="مثال: الرياض، الخرطوم، بحري..."
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-3 border-t border-gray-100 pt-3">
-                    <span>المجموع النهائي:</span>
-                    <span className="text-dal-red text-sm font-black font-mono">{formatCurrency(cartTotal)}</span>
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={checkoutLoading}
-                    className="w-full py-3 rounded-xl bg-dal-red hover:bg-red-700 hover:shadow-lg text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer leading-normal disabled:opacity-50"
-                  >
-                    {checkoutLoading ? (
-                      <>
-                        <Icons.Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جاري معالجة الطلب...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Send className="w-4 h-4" />
-                        <span>إرسال وتأكيد الطلب الآن</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
+        <CheckoutModal theme="brand" onClose={() => setCheckoutOpen(false)} onOrdered={() => setCartOpen(false)} />
       )}
     </div>
   );
