@@ -60,7 +60,7 @@ export default function LandingPage() {
     site_name: 'اسبير',
     logo: '',
     hero_title: 'أفضل قطع الغيار لسيارتك',
-    hero_subtitle: 'نوفر أفضل قطع الغيار الأصلية والمضمونة لكافة أنواع السيارات بأسعار منافسة.',
+    hero_subtitle: 'نوفر قطع غيار لكافة أنواع السيارات بدرجات جودة واضحة — أصلي وتجاري ومستعمل — وبأسعار منافسة.',
   });
   const [contacts, setContacts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -80,6 +80,10 @@ export default function LandingPage() {
   const [formError, setFormError] = useState('');
 
   // ──── Fetch Branding & Featured Products ────
+  useEffect(() => {
+    document.title = `${settings.site_name} — قطع غيار السيارات`;
+  }, [settings.site_name]);
+
   // الطلبان معاً لا بالتتابع، والصفحة تُعرض فوراً بأقسام مؤقتة حتى تصل البيانات.
   useEffect(() => {
     let active = true;
@@ -219,7 +223,7 @@ export default function LandingPage() {
           >
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-dal-sky/10 border border-dal-sky/25 text-dal-sky text-xs font-semibold animate-pulse">
               <Icons.CheckCircle className="w-3.5 h-3.5" />
-              قطع غيار أصلية ومكفولة 100%
+              قطع غيار بدرجات جودة واضحة
             </div>
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight md:leading-normal">
               {settings.hero_title}
@@ -254,10 +258,10 @@ export default function LandingPage() {
             <div className="glass-card p-8 border border-white/5 relative z-10 flex flex-col items-center gap-4 text-center max-w-sm">
               <BrandMark className="w-16 h-16 rounded-2xl ring-1 ring-white/10 shadow-lg" />
               <h3 className="text-lg font-black text-white">{settings.site_name}</h3>
-              <p className="text-xs text-slate-350 leading-relaxed">تجد معنا كافة قطع غيار المحركات، الفرامل، الكهرباء والهيكل الخارجي بأعلى جودة مع كفالة شاملة.</p>
+              <p className="text-xs text-slate-350 leading-relaxed">تجد معنا قطع غيار المحركات والفرامل والكهرباء والتعليق، مع حالة كل قطعة واضحة قبل الشراء.</p>
               <div className="flex items-center gap-2 text-xs text-dal-sky font-bold">
                 <Icons.ShieldCheck className="w-4 h-4" />
-                معتمدة ومضمونة 100%
+                أصلي · تجاري · مستعمل
               </div>
             </div>
           </div>
@@ -438,7 +442,7 @@ export default function LandingPage() {
                               </span>
                             ))
                           ) : (
-                            <span className="text-gray-400 text-[10px]">-</span>
+                            <span className="text-gray-500 text-[10px]">قطعة عامة — تحقق من المواصفات</span>
                           )}
                         </div>
                       </div>
@@ -503,16 +507,12 @@ export default function LandingPage() {
             <p className="text-xs md:text-sm text-gray-500">تواصل مباشر مع فريق الدعم أو اترك لنا رسالة</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            {/* Dynamic Contact Methods list */}
+          <div className={`grid grid-cols-1 gap-6 md:gap-8 ${contacts.length ? 'md:grid-cols-3' : 'max-w-3xl mx-auto'}`}>
+            {/* وسائل التواصل المباشر — يُخفى القسم كله إن لم يضبطها المحل، ويبقى نموذج الرسالة */}
+            {contacts.length > 0 && (
             <div className="md:col-span-1 space-y-4">
               <h3 className="text-base font-bold text-dal-dark mb-2">قنوات الدعم والاتصال</h3>
-              {contacts.length === 0 ? (
-                <div className="p-5 rounded-2xl bg-gray-50 border border-gray-100 text-center text-xs text-gray-400">
-                  لا توجد وسائل تواصل مسجلة حالياً
-                </div>
-              ) : (
-                contacts.map((c) => (
+              {contacts.map((c) => (
                   <a
                     key={c.id}
                     href={c.value.startsWith('http') ? c.value : `tel:${c.value}`}
@@ -530,9 +530,9 @@ export default function LandingPage() {
                       </span>
                     </div>
                   </a>
-                ))
-              )}
+                ))}
             </div>
+            )}
 
             {/* Contact messages form */}
             <div className="md:col-span-2 bg-white border border-gray-100 shadow-md rounded-2xl p-6">

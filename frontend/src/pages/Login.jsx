@@ -148,7 +148,7 @@ export default function Login() {
           {demoAccounts.length > 0 && (
             <div className="mt-6 pt-6 border-t border-white/5 space-y-3">
               <p className="text-sm text-surface-300 text-center">
-                نسخة تجريبية ببيانات وهمية تُعاد كل ليلة — جرّب بأي دور:
+                نسخة تجريبية ببيانات وهمية تُعاد كل 3 ساعات — جرّب بأي دور:
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {demoAccounts.map((account) => (

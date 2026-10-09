@@ -4,10 +4,11 @@ Core URL configuration.
 
 from django.contrib import admin
 from django.urls import path, include, re_path
-from django.views.generic import TemplateView
 from django.views.static import serve
 from django.conf import settings
 from django.conf.urls.static import static
+
+from core.views import spa_index
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,9 +16,7 @@ urlpatterns = [
     
     # Catch-all route for the React frontend
     
-    re_path(r'^(?!api/|admin/|media/|static/).*$',
-            TemplateView.as_view(template_name='index.html'),
-            name='index'),
+    re_path(r'^(?!api/|admin/|media/|static/).*$', spa_index, name='index'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────

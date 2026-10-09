@@ -255,3 +255,75 @@ class FeaturedPartsLimitTests(BaseAPITestCase):
         self.assertEqual(len(client.get('/api/public/featured-parts/').data), 12)
         self.assertEqual(len(client.get('/api/public/featured-parts/', {'limit': 4}).data), 4)
         self.assertEqual(len(client.get('/api/public/featured-parts/', {'limit': 'x'}).data), 12)
+
+
+class DemoGuardTests(BaseAPITestCase):
+    """نسخة العرض: لا يعطّل زائرٌ التجربةَ على غيره، ويبقى البيع وبقية العمل مفتوحاً."""
+
+    def png(self):
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.new('RGB', (8, 8), 'white').save(buffer, 'PNG')
+        return SimpleUploadedFile('x.png', buffer.getvalue(), content_type='image/png')
+
+    def test_sensitive_operations_are_blocked(self):
+        from django.test import override_settings
+        manager = self.client_for(self.manager)
+        with override_settings(DEMO_MODE=True):
+            for response in (
+                manager.delete(f'/api/categories/{self.category.pk}/'),
+                manager.post('/api/users/', {'username': 'x', 'password': 'StrongPass123!', 'role': 'manager'},
+                             format='json'),
+                manager.patch(f'/api/users/{self.employee.pk}/', {'role': 'manager'}, format='json'),
+                manager.put('/api/admin/settings/', {'site_name': 'محل مخرّب'}, format='json'),
+                manager.post('/api/contact-methods/', {'platform_name': 'x', 'value': 'x', 'icon_name': 'x'},
+                             format='json'),
+                manager.patch(f'/api/spare-parts/{self.part.pk}/', {'image': self.png()}, format='multipart'),
+            ):
+                self.assertEqual(response.status_code, 403, getattr(response, 'data', response.content))
+                self.assertIn('النسخة التجريبية', response.json()['detail'])
+            # ما يعرض قيمة النظام يبقى مفتوحاً.
+            sale = manager.post('/api/invoices/', {
+                'items': [{'spare_part': self.part.pk, 'quantity': 1}],
+                'payments': [{'method': 'cash', 'amount': '25'}],
+            }, format='json')
+            self.assertEqual(sale.status_code, 201, sale.data)
+            edit = manager.patch(f'/api/spare-parts/{self.part.pk}/', {'selling_price': '26.00'}, format='json')
+            self.assertEqual(edit.status_code, 200, edit.data)
+
+        self.part.refresh_from_db()
+        self.assertFalse(self.part.image)
+        self.assertTrue(type(self.category).objects.filter(pk=self.category.pk).exists())
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.role, 'employee')
+
+    def test_nothing_is_blocked_outside_demo_mode(self):
+        response = self.client_for(self.manager).put('/api/admin/settings/', {'site_name': 'محلي'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+
+
+class ShareTagsTests(BaseAPITestCase):
+    """وسوم المشاركة في HTML الخادم (واتساب لا يشغّل JavaScript)، لنسخة العرض فقط."""
+
+    def render_home(self, path='/', **settings_overrides):
+        import tempfile
+        from django.test import override_settings
+        with tempfile.TemporaryDirectory() as folder:
+            Path(folder, 'index.html').write_text(
+                '<html><head><title>اسبير</title></head><body><div id="root"></div></body></html>',
+                encoding='utf-8',
+            )
+            templates = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': [folder]}]
+            with override_settings(TEMPLATES=templates, **settings_overrides):
+                return self.client.get(path).content.decode('utf-8')
+
+    def test_demo_home_has_share_tags(self):
+        html = self.render_home(DEMO_MODE=True)
+        self.assertIn('property="og:title"', html)
+        self.assertIn('/static/landing/og.jpg', html)
+        self.assertIn('rel="canonical"', html)
+        self.assertEqual(html.count('<title>'), 1)
+
+    def test_real_shop_and_inner_pages_get_none(self):
+        self.assertNotIn('og:title', self.render_home(DEMO_MODE=False))
+        self.assertNotIn('og:title', self.render_home('/store', DEMO_MODE=True))

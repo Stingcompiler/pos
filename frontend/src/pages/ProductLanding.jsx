@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, BadgeCheck, Banknote, Barcode, BookOpenCheck, Calculator, ChevronDown, CloudOff,
@@ -192,6 +192,10 @@ export default function ProductLanding({ demoAccounts = [] }) {
   const [entering, setEntering] = useState(false);
   const manager = demoAccounts.find((account) => account.role === 'مدير') || demoAccounts[0];
 
+  useEffect(() => {
+    document.title = 'اسبير — نظام نقطة بيع ومخزون لمحلات قطع الغيار';
+  }, []);
+
   // دخول مباشر بحساب المدير التجريبي؛ إن تعذّر تبقى صفحة الدخول بأزرارها.
   const tryDemo = async () => {
     if (!manager) {
@@ -265,7 +269,7 @@ export default function ProductLanding({ demoAccounts = [] }) {
                 <DemoButton onClick={tryDemo} busy={entering} />
                 <WhatsAppButton />
               </div>
-              <p className="text-xs text-surface-500">النسخة التجريبية ببيانات وهمية، بلا تسجيل، وتُعاد كل ليلة.</p>
+              <p className="text-sm text-surface-300">النسخة التجريبية ببيانات وهمية، بلا تسجيل، وتُعاد كل 3 ساعات.</p>
             </div>
             <div className="relative">
               <img
