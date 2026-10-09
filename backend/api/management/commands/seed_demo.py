@@ -24,11 +24,12 @@ from django.utils import timezone
 
 from api import services
 from api.models import (
-    BankAccount, CarModel, Category, Customer, CustomUser, Expense, Invoice,
+    BankAccount, CarModel, Category, ContactMethod, Customer, CustomUser, Expense, Invoice,
     Payment, PublicOrder, PublicOrderItem, SiteSetting, SparePart, StockMovement, Supplier,
 )
 
 DEMO_PASSWORD = 'aspir-demo'
+SALES_PHONE = '0902929451'
 DEMO_USERS = [
     # (اسم المستخدم، الاسم، الدور)
     ('demo', 'مدير المحل', 'manager'),
@@ -62,6 +63,34 @@ PARTS = [
     ('زيوت', 'زيت قير أوتوماتيك ATF', 'OL-5201', '', 'Toyota', 'original', 'زيت قير، زيت جير', 'F1', 16000, 26000, 20, []),
     ('زيوت', 'ماء رديتر (كولانت)', 'CL-5301', '', 'Prestone', 'commercial', 'موية رديتر، كولانت', 'F2', 7000, 12000, 3, []),
 ]
+
+# أوصاف القطع في المتجر التجريبي: ما يحتاجه الزبون ليختار (المقاس، الاستخدام، متى تُغيّر).
+DESCRIPTIONS = {
+    'OF-1001': 'فلتر زيت أصلي لمحركات تويوتا البنزين 1.6–2.5 لتر. يُغيّر مع كل تغيير زيت (كل 5,000 كم تقريباً).',
+    'OF-1002': 'بديل تجاري لفلتر الزيت بالمقاس نفسه (90915-YZZE1). خيار اقتصادي لتغيير الزيت الدوري.',
+    'AF-2001': 'فلتر هواء المحرك لهايلوكس. يُفحص كل تغيير زيت ويُغيّر أسرع في الطرق الترابية.',
+    'FF-3001': 'فلتر جاز (ديزل) أصلي يحمي البخاخات من الشوائب والماء. يُغيّر كل 20,000 كم تقريباً.',
+    'CF-4001': 'فلتر مكيف الكابينة. يحسّن تبريد المكيف ويقلل الغبار داخل السيارة.',
+    'BP-1101': 'طقم فحمات فرامل أمامية (4 قطع) أصلي لهايلوكس.',
+    'BP-1102': 'طقم فحمات فرامل أمامية تجاري بالمقاس نفسه، مناسب للاستخدام اليومي داخل المدينة.',
+    'BD-1201': 'هوب (ديسك) فرامل أمامي، يُباع بالقطعة. يُنصح بتغييره زوجاً مع الفحمات.',
+    'BF-1301': 'زيت فرامل DOT4 عبوة 500 مل، يناسب أغلب السيارات. تحقق من الغطاء: DOT3 أو DOT4.',
+    'SP-2101': 'بوجي إريديوم طويل العمر (حتى 60,000 كم). تحتاج 4 قطع لمحرك بأربع أسطوانات.',
+    'TB-2201': 'سير المكينة (الدينمو والمكيف) لكامري. يُغيّر عند ظهور تشققات أو صوت صرير.',
+    'WP-2301': 'طرمبة ماء (مضخة تبريد) لهايلوكس مع الجوان. يُفضّل تغيير الكولانت معها.',
+    'FP-2401': 'طرمبة بنزين داخل التنك لأكسنت، كاملة مع الحساس.',
+    'RD-2501': 'رديتر نحاس للاندكروزر 70، تبريد عالٍ للحرارة والطرق الطويلة.',
+    'BT-3101': 'بطارية 70 أمبير جافة، ضمان سنة. تناسب أغلب السيارات الصغيرة والمتوسطة — تحقق من المقاس واتجاه الأقطاب.',
+    'AL-3201': 'دينمو مستعمل مفحوص لهايلوكس، ضمان أسبوعين للتركيب.',
+    'ST-3301': 'سلف مستعمل مفحوص لكورولا، ضمان أسبوعين للتركيب.',
+    'HL-3401': 'لمبة أمامية H4 هالوجين 60/55 واط، نور عالٍ ومنخفض.',
+    'SH-4101': 'مساعد أمامي غازي لهايلوكس، يُباع بالقطعة. يُنصح بتغييره زوجاً.',
+    'BU-4201': 'جلبة مقص سفلي لأكسنت وإلنترا.',
+    'BJ-4301': 'رمانة ميزان سفلية لهايلوكس ونافارا.',
+    'OL-5101': 'زيت محرك صناعي 5W-30، عبوة 4 لتر. يناسب أغلب محركات البنزين الحديثة.',
+    'OL-5201': 'زيت قير أوتوماتيك ATF، عبوة 1 لتر. راجع دليل سيارتك لنوع الزيت.',
+    'CL-5301': 'سائل تبريد (كولانت) جاهز، عبوة 1 جالون. لا يُخلط بأنواع مختلفة.',
+}
 
 SUPPLIERS = [
     ('شركة النيل لقطع الغيار', 'عبدالرحمن', '0912345001', 'المنطقة الصناعية، الخرطوم بحري'),
@@ -116,10 +145,16 @@ class Command(BaseCommand):
 
         site = SiteSetting.load()
         site.site_name = 'اسبير'
-        site.business_phone = '0912 000 000'
+        # رقم البائع الحقيقي (لا رقم وهمي قد يخص شخصاً آخر): من يتواصل مع المحل
+        # التجريبي يصل إلى من يبيع النظام.
+        site.business_phone = SALES_PHONE
         site.business_address = 'المنطقة الصناعية، الخرطوم بحري'
         site.receipt_footer = 'شكراً لتعاملكم معنا — القطع الكهربائية لا تُرجع بعد التركيب.'
         site.save()
+
+        ContactMethod.objects.create(platform_name='واتساب', value='https://wa.me/249902929451',
+                                     icon_name='MessageCircle')
+        ContactMethod.objects.create(platform_name='اتصال هاتفي', value=SALES_PHONE, icon_name='Phone')
 
         call_command('seed_vehicles', stdout=io.StringIO())
         cars = {car.model_name: car for car in CarModel.objects.all()}
@@ -143,6 +178,7 @@ class Command(BaseCommand):
                 aliases=aliases, shelf_location=shelf, category=categories[category],
                 supplier=random.choice(suppliers), purchase_price=Decimal(cost),
                 selling_price=Decimal(price), min_stock_alert=4, is_featured=price >= 30000,
+                description=DESCRIPTIONS.get(number),
             )
             part.compatible_cars.set([cars[model] for model in models if model in cars])
             services.set_opening_balance(part, quantity, user=manager)

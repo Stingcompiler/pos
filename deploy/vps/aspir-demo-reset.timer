@@ -1,8 +1,8 @@
 [Unit]
-Description=Aspir demo: nightly reset
+Description=Aspir demo: reset every 3 hours
 
 [Timer]
-OnCalendar=*-*-* 05:00:00
+OnCalendar=*-*-* 00/3:00:00
 Persistent=true
 
 [Install]

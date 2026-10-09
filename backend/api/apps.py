@@ -12,4 +12,4 @@ class ApiConfig(AppConfig):
 
     def ready(self):
         """تحميل إشارات الإشعارات عند تهيئة التطبيق."""
-        from . import signals  # noqa: F401
+        from . import demo, signals  # noqa: F401

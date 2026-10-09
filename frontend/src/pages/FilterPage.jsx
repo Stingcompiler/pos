@@ -42,6 +42,10 @@ export default function FilterPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [partsError, setPartsError] = useState('');
   const [siteName, setSiteName] = useState('اسبير');
+
+  useEffect(() => {
+    document.title = siteName ? `تصفح القطع | ${siteName}` : 'تصفح القطع';
+  }, [siteName]);
   // رقم آخر طلب: ردّ بحث قديم يصل متأخراً لا يكتب فوق نتائج البحث الحالي.
   const requestId = useRef(0);
 
@@ -379,9 +383,9 @@ export default function FilterPage() {
 
                         {/* Description snippet */}
                         {part.description ? (
-                          <p className="text-[10px] text-surface-450 line-clamp-2 leading-relaxed h-[32px]">{part.description}</p>
+                          <p className="text-[10px] text-surface-300 line-clamp-2 leading-relaxed h-[32px]">{part.description}</p>
                         ) : (
-                          <p className="text-[10px] text-surface-600 italic h-[32px]">لا يتوفر تفاصيل إضافية...</p>
+                          <p className="h-[32px]" aria-hidden="true" />
                         )}
 
                         {/* Compatible vehicle badges */}
@@ -394,7 +398,7 @@ export default function FilterPage() {
                                 </span>
                               ))
                             ) : (
-                              <span className="text-surface-650 text-[9px]">-</span>
+                              <span className="text-surface-400 text-[9px]">قطعة عامة — تحقق من المواصفات</span>
                             )}
                           </div>
                         </div>

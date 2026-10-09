@@ -514,7 +514,7 @@ class SiteSetting(models.Model):
         verbose_name='الشعار',
     )
     hero_title = models.CharField(max_length=255, default='أفضل قطع الغيار لسيارتك', verbose_name='عنوان الهيرو')
-    hero_subtitle = models.TextField(default='نوفر أفضل قطع الغيار الأصلية والمضمونة لكافة أنواع السيارات بأسعار منافسة.', verbose_name='العنوان الفرعي للهيرو')
+    hero_subtitle = models.TextField(default='نوفر قطع غيار لكافة أنواع السيارات بدرجات جودة واضحة — أصلي وتجاري ومستعمل — وبأسعار منافسة.', verbose_name='العنوان الفرعي للهيرو')
 
     class ReceiptPaper(models.TextChoices):
         THERMAL_80 = '80mm', 'إيصال حراري 80 مم'

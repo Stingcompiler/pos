@@ -191,7 +191,7 @@ export default function Customers() {
             إدارة العملاء
           </h1>
           <p className="text-sm text-surface-400 flex items-center gap-2">
-            سجل وملفات عملاء شركة دال موتورز{loaded ? ` · ${list.count} عميل` : ''}
+            سجل وملفات العملاء{loaded ? ` · ${list.count} عميل` : ''}
             {loading && loaded && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-400" aria-label="جارٍ التحديث" />}
           </p>
         </div>

@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+import useMediaQuery from '../hooks/useMediaQuery';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import BrandMark from './BrandMark';
@@ -122,6 +124,19 @@ const menuItems = [
 export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const asideRef = useRef(null);
+  // على الجوال المغلقة مزاحة خارج الشاشة فقط: inert يخرجها من التنقل بلوحة
+  // المفاتيح ومن قارئ الشاشة، وإلا تلقّى زر خروج غير مرئي التركيز.
+  const hiddenOnMobile = !isDesktop && !isOpen;
+
+  useEffect(() => {
+    if (isDesktop || !isOpen) return undefined;
+    asideRef.current?.querySelector('a, button')?.focus();
+    const onKeyDown = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDesktop, isOpen, onClose]);
 
   const handleLogout = async () => {
     await logout();
@@ -140,6 +155,10 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
 
   return (
     <aside
+      id="app-sidebar"
+      ref={asideRef}
+      inert={hiddenOnMobile}
+      aria-label="القائمة الرئيسية"
       className={`fixed top-0 bottom-0 h-screen z-40 flex flex-col transition-all duration-300 ease-in-out
         ${collapsed ? 'md:w-20' : 'md:w-64'} 
         ${isOpen ? 'right-0 w-64' : 'right-[-264px] md:right-0'}
@@ -206,6 +225,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
       {/* Collapse Toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
+        aria-label={collapsed ? 'توسيع القائمة الجانبية' : 'طي القائمة الجانبية'}
         className="hidden md:flex absolute top-1/2 -translate-y-1/2 -left-3 w-6 h-6 rounded-full
           bg-surface-800 border border-white/10 items-center justify-center
           text-surface-400 hover:text-white hover:bg-surface-700 transition-all duration-200
