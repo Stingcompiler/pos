@@ -8,6 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TransactionTestCase
 from openpyxl import Workbook
 from rest_framework.test import APIRequestFactory
 
@@ -181,6 +182,17 @@ class DemoSeedTests(BaseAPITestCase):
         with self.assertRaises(CommandError):
             call_command('seed_demo', reset=True, stdout=io.StringIO())
         self.assertTrue(SparePart.objects.filter(pk=self.part.pk).exists())
+
+
+class DemoSeedResetTests(TransactionTestCase):
+    """
+    --reset يمسح القاعدة (flush): بلا معاملة اختبار مغلِّفة، كما يعمل فعلاً.
+    PostgreSQL يرفض TRUNCATE داخل معاملة فيها قيود مؤجلة معلّقة.
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
 
     def test_demo_seed_and_login_hint(self):
         from django.core.management import call_command
