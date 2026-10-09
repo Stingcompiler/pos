@@ -110,3 +110,38 @@ jobs:
 
       - name: البناء
         run: npm run build
+
+  # النشر الآلي لنسخة العرض (aspir.stingdev.pro) بعد نجاح كل الفحوص على main.
+  # معطّل حتى يُشغَّل deploy/vps/setup-auto-deploy.sh مرة واحدة، فيضبط:
+  #   Variables: ASPIR_DEPLOY=true
+  #   Secrets:   ASPIR_SSH_KEY (مفتاح مقيّد بأمر aspir-deploy وحده)، ASPIR_KNOWN_HOSTS
+  # نرسل sha الالتزام فقط؛ الخادم يجلبه ويبنيه ويفحص صحته ويعود للسابق إن فشل.
+  deploy:
+    name: النشر على aspir.stingdev.pro
+    needs: [backend, backend-postgresql, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ASPIR_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # دمجان متتاليان: يُنشر الأحدث بعد انتهاء الجاري، ولا يُقطع نشر في منتصفه.
+    concurrency:
+      group: deploy-aspir
+      cancel-in-progress: false
+    steps:
+      - name: نشر هذا الالتزام على الخادم
+        env:
+          SSH_KEY: ${{ secrets.ASPIR_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.ASPIR_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy -o BatchMode=yes ubuntu@57.129.162.57 "${{ github.sha }}"
+
+      - name: فحص الموقع الحي
+        run: |
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://aspir.stingdev.pro/api/public/settings/) || true
+            [ "$code" = 200 ] && { echo "aspir.stingdev.pro healthy"; exit 0; }
+            sleep 5
+          done
+          echo "aspir.stingdev.pro health: $code" && exit 1

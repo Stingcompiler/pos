@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# الأمر الوحيد الذي يسمح به مفتاح نشر GitHub Actions (command= في authorized_keys).
+# يُثبَّت في /usr/local/bin بملكية root: نسخة لا المستودع، فلا يغيّر أي دمج
+# لاحق ما يستطيع المفتاح تشغيله.
+#
+# المدخل الوحيد: sha الالتزام (40 حرفاً ست عشرياً) عبر SSH_ORIGINAL_COMMAND.
+#   1. يجلب الالتزام نفسه من المستودع العام إلى /srv/apps/aspir
+#   2. يبني الصورة ويشغّلها بملف compose المثبّت على الخادم (/etc/aspir)، لا
+#      بملف من المستودع: ملف compose يعمل بـ sudo ويمكنه ربط مسارات الخادم
+#   3. يفحص الصحة، ويعود إلى الصورة السابقة إن فشلت
+set -euo pipefail
+
+SHA="${SSH_ORIGINAL_COMMAND:-${1:-}}"
+if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "usage: aspir-deploy <40-char commit sha>" >&2
+  exit 2
+fi
+
+SRC=/srv/apps/aspir
+COMPOSE=(sudo docker compose -p aspir -f /etc/aspir/compose.yml)
+exec 9>/tmp/aspir-deploy.lock
+flock -n 9 || { echo "another deploy is running" >&2; exit 3; }
+
+echo "fetching $SHA"
+git -C "$SRC" fetch --quiet --depth 1 origin "$SHA"
+git -C "$SRC" -c advice.detachedHead=false checkout --quiet --force FETCH_HEAD
+git -C "$SRC" clean -qfd -e deploy/vps/.env
+
+sudo docker image inspect aspir:latest >/dev/null 2>&1 && sudo docker tag aspir:latest aspir:previous
+echo "building"
+"${COMPOSE[@]}" build --quiet app
+"${COMPOSE[@]}" up -d app
+
+healthy() {
+  for _ in $(seq 1 30); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: aspir.stingdev.pro' \
+      -H 'X-Forwarded-Proto: https' http://127.0.0.1:3300/api/public/settings/ || true)"
+    [ "$code" = 200 ] && return 0
+    sleep 3
+  done
+  return 1
+}
+
+if healthy; then
+  sudo docker image prune -f >/dev/null
+  echo "$SHA" | sudo tee /etc/aspir/DEPLOYED >/dev/null
+  echo "deployed $SHA"
+else
+  echo "health check failed — rolling back" >&2
+  "${COMPOSE[@]}" logs --tail 40 app >&2 || true
+  if sudo docker image inspect aspir:previous >/dev/null 2>&1; then
+    sudo docker tag aspir:previous aspir:latest
+    "${COMPOSE[@]}" up -d --no-build app
+  fi
+  exit 1
+fi

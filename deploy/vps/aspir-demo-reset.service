@@ -5,5 +5,4 @@ After=docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/srv/apps/aspir/deploy/vps
-ExecStart=/usr/bin/docker compose exec -T app python manage.py seed_demo --reset
+ExecStart=/usr/bin/docker compose -p aspir -f /etc/aspir/compose.yml exec -T app python manage.py seed_demo --reset
