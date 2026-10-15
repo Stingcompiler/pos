@@ -32,7 +32,7 @@ const NOTICE_CLASSES = {
   error: 'bg-danger-500/10 border-danger-500/20 text-danger-400',
 };
 
-const ICON_BTN = 'p-2 rounded-lg text-surface-400 transition-all cursor-pointer';
+const ICON_BTN = 'p-3.5 md:p-2 rounded-lg text-surface-400 transition-all cursor-pointer';
 
 export default function SpareParts() {
   const { user } = useAuth();
@@ -637,7 +637,7 @@ export default function SpareParts() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1 || loading}
                 aria-label="الصفحة السابقة"
-                className="p-2 rounded-lg text-surface-400 hover:text-white hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer"
+                className="p-3.5 md:p-2 rounded-lg text-surface-400 hover:text-white hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -653,7 +653,7 @@ export default function SpareParts() {
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages || loading}
                 aria-label="الصفحة التالية"
-                className="p-2 rounded-lg text-surface-400 hover:text-white hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer"
+                className="p-3.5 md:p-2 rounded-lg text-surface-400 hover:text-white hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>

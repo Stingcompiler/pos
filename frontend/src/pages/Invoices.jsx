@@ -173,7 +173,7 @@ export default function Invoices() {
               type="button"
               aria-pressed={method === option.value}
               onClick={() => setMethod(option.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              className={`px-3.5 py-3 md:px-3 md:py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 method === option.value
                   ? 'bg-primary-600 text-white'
                   : 'bg-white/5 text-surface-300 hover:bg-white/10 hover:text-white'
@@ -264,10 +264,13 @@ export default function Invoices() {
                             creditAmount={inv.credit_amount}
                           />
                         </p>
+                        {inv.customer_name && (
+                          <p className="text-sm text-surface-200 truncate">العميل: {inv.customer_name}</p>
+                        )}
                         <p className="text-xs text-surface-400 truncate">
-                          {formatDateTime(inv.created_at)} · {inv.cashier_name}
-                          {inv.customer_name ? ` · العميل: ${inv.customer_name}` : ''}
+                          {formatDateTime(inv.created_at)}
                           {inv.items_count != null ? ` · ${inv.items_count} بند` : ''}
+                          {inv.cashier_name ? ` · ${inv.cashier_name}` : ''}
                         </p>
                       </div>
                     </div>

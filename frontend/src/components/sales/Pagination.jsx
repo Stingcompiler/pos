@@ -10,7 +10,7 @@ export default function Pagination({ page, pageSize, count, onPageChange, disabl
   if (!count) return null;
 
   const buttonClass =
-    'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 text-surface-300 bg-white/5 ' +
+    'px-3.5 py-3 md:px-3 md:py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 text-surface-300 bg-white/5 ' +
     'hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer';
 
   return (

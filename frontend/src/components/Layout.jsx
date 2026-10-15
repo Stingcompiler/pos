@@ -2,8 +2,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { getPublicSettings } from '../utils/publicSettings';
 import Sidebar from './Sidebar';
 import NotificationBadge from './NotificationBadge';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Menu } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, Menu } from 'lucide-react';
 
 const PAGE_TITLES = {
   '/dashboard/settings': 'الإعدادات',
@@ -111,7 +111,17 @@ export default function Layout() {
         <main className={`flex-1 transition-all duration-300 ease-in-out p-4 md:p-8 ${
           collapsed ? 'md:mr-20' : 'md:mr-64'
         }`}>
-          <Outlet />
+          {/* التحميل داخل الإطار: كان Suspense الجذري يستبدل القائمة والترويسة كلها
+              بشاشة تحميل عند أول زيارة لكل صفحة. */}
+          <Suspense
+            fallback={(
+              <div className="flex justify-center py-24" role="status" aria-label="جارٍ التحميل">
+                <Loader2 className="w-8 h-8 text-primary-500 animate-spin" aria-hidden="true" />
+              </div>
+            )}
+          >
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

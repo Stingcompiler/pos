@@ -270,7 +270,7 @@ export default function Reports() {
                 type="button"
                 onClick={() => setPeriod(p.id)}
                 aria-pressed={period === p.id}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-3.5 py-3 md:px-3 md:py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   period === p.id
                     ? 'bg-primary-600 text-white shadow'
                     : 'text-surface-400 hover:text-white'
