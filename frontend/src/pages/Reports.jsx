@@ -435,7 +435,7 @@ export default function Reports() {
                 تفاصيل المبيعات حسب الفترة
               </h2>
             </div>
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full text-right text-sm">
                 <thead>
                   <tr className="text-surface-400 border-b border-white/5">
@@ -481,7 +481,7 @@ export default function Reports() {
                 القطع الأكثر مبيعاً (بالإيراد الصافي)
               </h2>
             </div>
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full text-right text-sm">
                 <thead>
                   <tr className="text-surface-400 border-b border-white/5">

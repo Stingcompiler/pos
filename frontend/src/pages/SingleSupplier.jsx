@@ -554,7 +554,7 @@ export default function SingleSupplier() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full text-right border-collapse text-xs">
                 <thead>
                   <tr className="bg-white/2 border-b border-white/5 text-surface-400 font-bold">

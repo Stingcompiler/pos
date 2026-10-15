@@ -77,7 +77,7 @@ export default function ReturnModal({ invoice, onClose, onSuccess }) {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full text-sm min-w-[460px]">
             <thead>
               <tr className="text-surface-400 text-xs">

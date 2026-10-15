@@ -40,7 +40,7 @@ export default function Users() {
         <button onClick={()=>{setForm(emptyForm);setError('');setShowModal(true);}} className="flex items-center gap-2 px-4 py-2.5 rounded-xl gradient-primary text-white font-medium text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary-600/20"><Plus className="w-4 h-4" /> إضافة مستخدم</button>
       </div>
 
-      <div className="glass-card overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-white/5">
+      <div className="glass-card overflow-hidden"><div className="relative overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-white/5">
         <th className="px-5 py-4 text-right text-surface-400 font-medium">المستخدم</th>
         <th className="px-5 py-4 text-right text-surface-400 font-medium">الاسم</th>
         <th className="px-5 py-4 text-right text-surface-400 font-medium">الدور</th>

@@ -25,7 +25,7 @@ export default function BanksTable({ banks, date }) {
       {banks.length === 0 ? (
         <EmptyState compact icon={Landmark} title="لا توجد تحويلات بنكية في هذا اليوم" />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full text-right text-sm">
             <thead>
               <tr className="border-b border-white/5 text-surface-400 text-xs">

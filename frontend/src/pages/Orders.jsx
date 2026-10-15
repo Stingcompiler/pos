@@ -241,7 +241,7 @@ export default function Orders() {
             <span>{statusFilter ? 'لا توجد طلبات بهذه الحالة' : 'لا توجد طلبات خارجية واردة حالياً'}</span>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-white/5 bg-surface-900/20 text-surface-400 text-xs font-semibold">
