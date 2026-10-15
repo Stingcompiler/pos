@@ -3,7 +3,7 @@ import { getPublicSettings } from '../utils/publicSettings';
 import Sidebar from './Sidebar';
 import NotificationBadge from './NotificationBadge';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Menu } from 'lucide-react';
+import { Loader2, Menu, X } from 'lucide-react';
 
 const PAGE_TITLES = {
   '/dashboard/settings': 'الإعدادات',
@@ -31,6 +31,13 @@ export default function Layout() {
   const wasOpen = useRef(false);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const [demoMode, setDemoMode] = useState(false);
+  const [bannerHidden, setBannerHidden] = useState(() => {
+    try { return sessionStorage.getItem('demo-banner-hidden') === '1'; } catch { return false; }
+  });
+  const hideBanner = () => {
+    setBannerHidden(true);
+    try { sessionStorage.setItem('demo-banner-hidden', '1'); } catch { /* الإخفاء لهذه الصفحة فقط */ }
+  };
   const { pathname } = useLocation();
 
   useEffect(() => {
@@ -74,7 +81,7 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Global Responsive Header Bar */}
-        <header className={`no-print flex items-center justify-between px-6 py-4 border-b border-white/5 bg-surface-900/40 backdrop-blur-md sticky top-0 z-20 transition-all duration-300 ease-in-out ${
+        <header style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} className={`no-print flex items-center justify-between px-6 pb-4 border-b border-white/5 bg-surface-900/40 backdrop-blur-md sticky top-0 z-20 transition-all duration-300 ease-in-out ${
           collapsed ? 'md:mr-20' : 'md:mr-64'
         }`}>
           <div className="flex items-center gap-4">
@@ -96,19 +103,29 @@ export default function Layout() {
           </div>
         </header>
 
-        {demoMode && (
+        {demoMode && !bannerHidden && (
           <div
             role="note"
-            className={`no-print px-4 py-2 text-center text-xs md:text-sm font-semibold bg-warning-500/15 text-warning-300 border-b border-warning-500/20 ${
+            className={`no-print flex items-center justify-between gap-2 ps-4 pe-1 text-xs md:text-sm font-semibold bg-warning-500/15 text-warning-300 border-b border-warning-500/20 ${
               collapsed ? 'md:mr-20' : 'md:mr-64'
             }`}
           >
-            نسخة تجريبية: البيانات وهمية وتُعاد كل 3 ساعات، وبعض الإعدادات معطّلة.
+            <span className="py-2.5 truncate">
+              نسخة تجريبية — البيانات وهمية وتُعاد كل 3 ساعات<span className="hidden md:inline">، وبعض الإعدادات معطّلة</span>
+            </span>
+            <button
+              type="button"
+              onClick={hideBanner}
+              aria-label="إخفاء التنبيه"
+              className="shrink-0 flex items-center justify-center w-11 h-11 rounded-lg hover:bg-white/10 cursor-pointer"
+            >
+              <X className="w-4 h-4" aria-hidden="true" />
+            </button>
           </div>
         )}
 
         {/* Dynamic Route Content */}
-        <main className={`flex-1 transition-all duration-300 ease-in-out p-4 md:p-8 ${
+        <main style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }} className={`flex-1 transition-all duration-300 ease-in-out p-4 md:p-8 ${
           collapsed ? 'md:mr-20' : 'md:mr-64'
         }`}>
           {/* التحميل داخل الإطار: كان Suspense الجذري يستبدل القائمة والترويسة كلها

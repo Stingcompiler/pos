@@ -401,7 +401,7 @@ export default function LandingPage() {
                   className="bg-white border border-gray-100 shadow-md rounded-2xl flex flex-col group overflow-hidden hover:border-dal-sky/40 transition-all duration-300 min-w-full md:min-w-0 snap-center"
                 >
                   {/* Part Image display */}
-                  <div className="h-48 w-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative border-b border-gray-100 overflow-hidden">
+                  <div className={`${part.image ? 'h-48' : 'h-24 md:h-48'} w-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center relative border-b border-gray-100 overflow-hidden`}>
                     {part.image ? (
                       <img src={getImageUrl(part.image)} alt={part.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (

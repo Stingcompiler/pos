@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw, Save, Scale, Search } from 'lucide-react';
 import api from '../../api/axios';
+import FileInput from '../FileInput';
 import { mediaUrl } from '../../api/media';
 import { apiErrorMessage } from '../../utils/api';
 import { formatCurrency } from '../../utils/currency';
@@ -471,7 +472,7 @@ export default function PartFormModal({
             <div>
               <label htmlFor="part-form-image" className={LABEL_CLASS}>صورة القطعة</label>
               <div className="flex items-center gap-4">
-                <input id="part-form-image" type="file" accept="image/*"
+                <FileInput id="part-form-image" accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {

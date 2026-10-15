@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../api/axios';
+import FileInput from '../components/FileInput';
 import Pagination from '../components/sales/Pagination';
 import usePagedList from '../hooks/usePagedList';
 import { useAuth } from '../context/useAuth';
@@ -184,7 +185,7 @@ export default function Categories() {
                 <label className="block text-xs font-semibold text-surface-300 mb-1.5">صورة الفئة التوضيحية</label>
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <input type="file" accept="image/*" onChange={(e) => {
+                    <FileInput accept="image/*" onChange={(e) => {
                       const file = e.target.files[0];
                       if (file) {
                         setImage(file);

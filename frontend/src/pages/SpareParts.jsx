@@ -13,6 +13,7 @@ import {
   PAGE_SIZE, QUALITY_BADGE_CLASSES, QUALITY_GRADES, carModelLabel, isPriceStale, priceAgeDays,
 } from '../components/parts/partForm';
 import { CHECKBOX_CLASS } from '../components/parts/styles';
+import ScrollTable from '../components/ScrollTable';
 import {
   Package, Plus, Search, Edit3, Trash2, X, Loader2, AlertTriangle, ChevronLeft, ChevronRight,
   Image as ImageIcon, History, FileSpreadsheet, Download, Upload, Printer, RefreshCw, Clock,
@@ -414,7 +415,7 @@ export default function SpareParts() {
 
       {/* Table */}
       <div className="glass-card overflow-hidden">
-        <div className="relative overflow-x-auto">
+        <ScrollTable>
           <table className="w-full text-sm" aria-busy={loading}>
             <thead>
               <tr className="border-b border-white/5">
@@ -626,7 +627,7 @@ export default function SpareParts() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
 
         {/* Pagination */}
         {!loadError && count > 0 && (

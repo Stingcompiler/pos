@@ -3,6 +3,7 @@ import {
   AlertTriangle, CheckCircle2, Download, Eye, FileSpreadsheet, Loader2, Upload,
 } from 'lucide-react';
 import api from '../../api/axios';
+import FileInput from '../FileInput';
 import { apiErrorMessage, downloadFile } from '../../utils/api';
 import PartsModal from './PartsModal';
 import {
@@ -113,16 +114,14 @@ export default function ImportModal({ onClose, onImported }) {
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
           <div>
             <label htmlFor="parts-import-file" className={LABEL_CLASS}>ملف Excel أو CSV *</label>
-            <input
+            <FileInput
               id="parts-import-file"
-              type="file"
               accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
               disabled={Boolean(busy)}
               onChange={(e) => {
                 setFile(e.target.files?.[0] || null);
                 resetPreview();
               }}
-              className="w-full text-xs text-surface-400 file:ml-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-600/10 file:text-primary-400 hover:file:bg-primary-600/20 file:cursor-pointer"
             />
           </div>
           <button type="button" onClick={handleTemplate} disabled={Boolean(busy)} className={BTN_SECONDARY}>

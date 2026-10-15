@@ -4,6 +4,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, CircleAlert, Landmark, RefreshCw, Search, ShieldCheck,
 } from 'lucide-react';
 import api from '../api/axios';
+import ScrollTable from '../components/ScrollTable';
 import { apiErrorMessage, fetchAllPages, localDateString } from '../utils/api';
 import { formatCurrency } from '../utils/currency';
 import { transferTotals } from '../components/cash/cashMath';
@@ -355,7 +356,7 @@ export default function Transfers() {
           />
         ) : (
           <>
-            <div className="relative overflow-x-auto">
+            <ScrollTable>
               <table className="w-full text-right text-sm">
                 <thead>
                   <tr className="border-b border-white/5 text-surface-400 text-xs">
@@ -384,7 +385,7 @@ export default function Transfers() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollTable>
             {totalPages > 1 && (
               <nav className="p-3 border-t border-white/5 flex items-center justify-between text-xs" aria-label="صفحات التحويلات">
                 <button
