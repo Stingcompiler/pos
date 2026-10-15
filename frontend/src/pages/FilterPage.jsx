@@ -177,7 +177,7 @@ export default function FilterPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold hover:bg-white/10 transition-all cursor-pointer"
+              className="flex items-center gap-2 px-3 py-3 md:py-1.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold hover:bg-white/10 transition-all cursor-pointer"
             >
               <ArrowRight className="w-4 h-4" />
               العودة للرئيسية
@@ -418,7 +418,7 @@ export default function FilterPage() {
                             addToCart(part);
                             setCartOpen(true);
                           }}
-                          className={`w-full h-8.5 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${part.stock_quantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`w-full h-11 md:h-8.5 rounded-lg bg-primary-600 hover:bg-primary-500 text-white text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${part.stock_quantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           <ShoppingCart className="w-3.5 h-3.5 text-white" />
                           أضف إلى السلة
@@ -426,7 +426,7 @@ export default function FilterPage() {
 
                         <button
                           onClick={() => navigate(`/product/${part.id}`)}
-                          className="w-full h-8.5 rounded-lg bg-surface-900 border border-white/5 hover:border-primary-500/20 text-white text-[11px] font-bold hover:bg-surface-800 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full h-11 md:h-8.5 rounded-lg bg-surface-900 border border-white/5 hover:border-primary-500/20 text-white text-[11px] font-bold hover:bg-surface-800 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Info className="w-3.5 h-3.5 text-primary-400" />
                           عرض التفاصيل

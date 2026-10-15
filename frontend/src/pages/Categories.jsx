@@ -131,16 +131,16 @@ export default function Categories() {
                     <p className="text-xs text-surface-600 italic">لا يوجد وصف...</p>
                   )}
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
                   {canEdit && (
                     <button onClick={() => openEdit(cat)}
-                      className="p-1.5 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-600/10 transition-all cursor-pointer">
+                      className="p-3 md:p-1.5 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-600/10 transition-all cursor-pointer">
                       <Edit3 className="w-4 h-4" />
                     </button>
                   )}
                   {canDelete && (
                     <button onClick={() => handleDelete(cat.id)}
-                      className="p-1.5 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all cursor-pointer">
+                      className="p-3 md:p-1.5 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all cursor-pointer">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -162,7 +162,7 @@ export default function Categories() {
           <div className="w-full max-w-md mx-4 glass-card p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-white">{editing ? 'تعديل فئة' : 'فئة جديدة'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-lg text-surface-400 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+              <button onClick={() => setShowModal(false)} className="p-3 md:p-2 rounded-lg text-surface-400 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             {error && <div className="p-3 mb-4 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-fade-in">{error}</div>}
             

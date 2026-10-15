@@ -175,13 +175,13 @@ export default function CarModels() {
                         <div className="flex items-center justify-center gap-1">
                           {canEdit && (
                             <button onClick={() => openEdit(model)}
-                              className="p-2 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-600/10 transition-all cursor-pointer">
+                              className="p-3.5 md:p-2 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-600/10 transition-all cursor-pointer">
                               <Edit3 className="w-4 h-4" />
                             </button>
                           )}
                           {canDelete && (
                             <button onClick={() => handleDelete(model.id)}
-                              className="p-2 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all cursor-pointer">
+                              className="p-3.5 md:p-2 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all cursor-pointer">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           )}
@@ -207,7 +207,7 @@ export default function CarModels() {
           <div className="w-full max-w-md mx-4 glass-card p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-white">{editing ? 'تعديل موديل سيارة' : 'إضافة موديل جديد'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-lg text-surface-400 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+              <button onClick={() => setShowModal(false)} className="p-3 md:p-2 rounded-lg text-surface-400 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             {error && <div className="p-3 mb-4 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-fade-in">{error}</div>}
             

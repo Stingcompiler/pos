@@ -220,7 +220,7 @@ export default function Orders() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-2 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold"
+              className="px-2 py-3 md:py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold"
             >
               {STATUS_FILTERS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -274,7 +274,7 @@ export default function Orders() {
                         {/* Details Toggle */}
                         <button
                           onClick={() => setSelectedOrder(selectedOrder?.id === order.id ? null : order)}
-                          className="px-3 py-1.5 rounded-lg bg-surface-800 text-white text-xs font-semibold hover:bg-surface-700 transition-colors flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-3 md:py-1.5 rounded-lg bg-surface-800 text-white text-xs font-semibold hover:bg-surface-700 transition-colors flex items-center gap-1 cursor-pointer"
                         >
                           تفاصيل المنتجات
                           {selectedOrder?.id === order.id ? (
@@ -290,7 +290,7 @@ export default function Orders() {
                           disabled={updatingId === order.id || order.status === 'completed'}
                           value={order.status}
                           onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
-                          className="px-2 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-primary-500 cursor-pointer disabled:opacity-50"
+                          className="px-2 py-3 md:py-1.5 rounded-lg bg-surface-800 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-primary-500 cursor-pointer disabled:opacity-50"
                         >
                           <option value="pending">قيد الانتظار</option>
                           <option value="confirmed">تأكيد الطلب</option>
@@ -302,7 +302,7 @@ export default function Orders() {
                           <button
                             type="button"
                             onClick={() => { setSuccessMessage(''); setSellingOrder(order); }}
-                            className="px-3 py-1.5 rounded-lg gradient-primary text-white text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                            className="px-3 py-3 md:py-1.5 rounded-lg gradient-primary text-white text-xs font-semibold flex items-center gap-1 cursor-pointer"
                           >
                             <ReceiptText className="w-3.5 h-3.5" aria-hidden="true" />
                             بيع

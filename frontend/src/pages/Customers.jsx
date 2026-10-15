@@ -227,7 +227,7 @@ export default function Customers() {
               type="button"
               aria-pressed={filter === option.key}
               onClick={() => setFilter(option.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              className={`px-3.5 py-3 md:px-3 md:py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 filter === option.key
                   ? option.key === 'debtors' ? 'bg-danger-600 text-white' : 'bg-primary-600 text-white'
                   : 'bg-white/5 text-surface-300 hover:bg-white/10 hover:text-white'
@@ -327,7 +327,7 @@ export default function Customers() {
                           <button
                             type="button"
                             onClick={() => handleOpenEditModal(cust)}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-surface-300 hover:text-white transition cursor-pointer"
+                            className="p-3 md:p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-surface-300 hover:text-white transition cursor-pointer"
                             title="تعديل"
                             aria-label={`تعديل بيانات ${cust.name}`}
                           >
@@ -337,7 +337,7 @@ export default function Customers() {
                             <button
                               type="button"
                               onClick={() => handleDelete(cust)}
-                              className="p-1.5 rounded-lg bg-danger-600/10 hover:bg-danger-600/20 text-danger-400 hover:text-danger-300 transition cursor-pointer"
+                              className="p-3 md:p-1.5 rounded-lg bg-danger-600/10 hover:bg-danger-600/20 text-danger-400 hover:text-danger-300 transition cursor-pointer"
                               title="حذف"
                               aria-label={`حذف العميل ${cust.name}`}
                             >
@@ -407,7 +407,7 @@ export default function Customers() {
                         href={`https://wa.me/${cust.whatsapp_number.replace(/\D/g, '')}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-3 py-3 md:py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
                       >
                         <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
                         واتساب
@@ -415,7 +415,7 @@ export default function Customers() {
                     )}
                     <a
                       href={`tel:${cust.phone}`}
-                      className="px-3 py-1.5 rounded-lg bg-primary-600/15 hover:bg-primary-600/25 text-primary-400 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                      className="px-3 py-3 md:py-1.5 rounded-lg bg-primary-600/15 hover:bg-primary-600/25 text-primary-400 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <Phone className="w-3.5 h-3.5" aria-hidden="true" />
                       اتصال مباشر

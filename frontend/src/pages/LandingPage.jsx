@@ -464,7 +464,7 @@ export default function LandingPage() {
                           addToCart(part);
                           setCartOpen(true);
                         }}
-                        className={`w-full py-2 rounded-xl bg-dal-sky hover:bg-dal-sky/90 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer leading-normal ${part.stock_quantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`w-full py-3 md:py-2 rounded-xl bg-dal-sky hover:bg-dal-sky/90 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer leading-normal ${part.stock_quantity === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <Icons.ShoppingCart className="w-3.5 h-3.5 text-white" />
                         أضف إلى السلة
@@ -473,7 +473,7 @@ export default function LandingPage() {
                       {/* View Details Button */}
                       <button
                         onClick={() => navigate(`/product/${part.id}`)}
-                        className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer leading-normal"
+                        className="w-full py-3 md:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer leading-normal"
                       >
                         <Icons.Info className="w-3.5 h-3.5 text-white" />
                         عرض التفاصيل
