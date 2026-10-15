@@ -349,7 +349,7 @@ export default function FilterPage() {
                     className="glass-card flex flex-col group overflow-hidden border border-white/5 hover:border-primary-500/30 transition-all duration-300 shadow-md"
                   >
                     {/* Part Image display */}
-                    <div className="h-44 w-full bg-gradient-to-br from-surface-900 to-surface-950 flex items-center justify-center relative border-b border-white/3 overflow-hidden">
+                    <div className={`${part.image ? 'h-44' : 'h-24 md:h-44'} w-full bg-gradient-to-br from-surface-900 to-surface-950 flex items-center justify-center relative border-b border-white/3 overflow-hidden`}>
                       {part.image ? (
                         <img src={getImageUrl(part.image)} alt={part.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       ) : (

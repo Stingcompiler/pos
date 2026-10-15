@@ -167,6 +167,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
         ${isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
       `}
       style={{
+        paddingBottom: 'env(safe-area-inset-bottom)',
         background: 'linear-gradient(180deg, rgba(20,20,35,0.98) 0%, rgba(15,15,28,0.99) 100%)',
         borderLeft: '1px solid rgba(255,255,255,0.06)',
       }}

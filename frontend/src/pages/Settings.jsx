@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
+import FileInput from '../components/FileInput';
 import { mediaUrl } from '../api/media';
 import { apiErrorMessage } from '../utils/api';
 import { invalidateReceiptSettings } from '../hooks/useReceiptSettings';
@@ -368,9 +369,8 @@ export default function SettingsView() {
                           }}
                         />
                       )}
-                      <input
+                      <FileInput
                         id="branding-logo"
-                        type="file"
                         accept="image/*"
                         onChange={(e) => {
                           const file = e.target.files[0];
