@@ -59,7 +59,7 @@ export default function MovementsModal({ part, onClose }) {
       ) : movements.length === 0 ? (
         <p className="py-10 text-center text-surface-500 text-sm">لا توجد حركات مسجّلة لهذه القطعة.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/5">
+        <div className="relative overflow-x-auto rounded-xl border border-white/5">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-white/5 text-surface-400">

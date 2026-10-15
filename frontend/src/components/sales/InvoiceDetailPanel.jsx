@@ -184,7 +184,7 @@ export default function InvoiceDetailPanel({
 
       <div>
         <SectionTitle icon={FileText}>البنود</SectionTitle>
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full text-sm min-w-[420px]">
             <thead>
               <tr className="text-surface-400 text-xs">

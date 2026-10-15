@@ -46,3 +46,21 @@ describe('القائمة الجانبية', () => {
     expect(screen.getByRole('button', { name: 'طي القائمة الجانبية' })).toBeInTheDocument();
   });
 });
+
+describe('القائمة الجانبية: ثبات العرض', () => {
+  afterEach(() => { delete window.matchMedia; });
+
+  it('العرض w-64 ثابت مفتوحةً ومغلقة، والإخفاء بالإزاحة لا بتغيير الموضع', () => {
+    setViewport(false);
+    const { rerender } = renderSidebar({ isOpen: false });
+    const sidebar = document.getElementById('app-sidebar');
+    expect(sidebar).toHaveClass('w-64', 'translate-x-full');
+    rerender(
+      <MemoryRouter>
+        <Sidebar collapsed={false} setCollapsed={() => {}} onClose={() => {}} isOpen />
+      </MemoryRouter>,
+    );
+    expect(sidebar).toHaveClass('w-64', 'translate-x-0');
+    expect(sidebar.className).not.toMatch(/right-\[-/);
+  });
+});

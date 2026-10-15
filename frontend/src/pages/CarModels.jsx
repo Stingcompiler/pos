@@ -131,7 +131,7 @@ export default function CarModels() {
       </div>
 
       <div className="glass-card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/5">

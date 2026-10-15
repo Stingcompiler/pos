@@ -235,7 +235,7 @@ export default function ExchangeRatesSection({ onRateRecorded }) {
               ) : history.length === 0 ? (
                 <p className="text-sm text-surface-400 py-4">لم يُسجَّل أي سعر لهذه العملة بعد.</p>
               ) : (
-                <div className={`overflow-x-auto rounded-xl border border-white/5 ${historyLoading ? 'opacity-60' : ''}`}>
+                <div className={`relative overflow-x-auto rounded-xl border border-white/5 ${historyLoading ? 'opacity-60' : ''}`}>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/5 bg-surface-900/30 text-surface-400">

@@ -159,9 +159,12 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
       ref={asideRef}
       inert={hiddenOnMobile}
       aria-label="القائمة الرئيسية"
-      className={`fixed top-0 bottom-0 h-screen z-40 flex flex-col transition-all duration-300 ease-in-out
-        ${collapsed ? 'md:w-20' : 'md:w-64'} 
-        ${isOpen ? 'right-0 w-64' : 'right-[-264px] md:right-0'}
+      // العرض ثابت (w-64) والإخفاء بالإزاحة: كان w-64 يُنزع لحظة الإغلاق فيقفز
+      // العرض إلى عرض المحتوى (185px) قبل أن تنزلق القائمة.
+      className={`fixed top-0 bottom-0 right-0 w-64 h-screen z-40 flex flex-col
+        transition-[translate,width] duration-300 ease-in-out motion-reduce:transition-none
+        ${collapsed ? 'md:w-20' : 'md:w-64'}
+        ${isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
       `}
       style={{
         background: 'linear-gradient(180deg, rgba(20,20,35,0.98) 0%, rgba(15,15,28,0.99) 100%)',

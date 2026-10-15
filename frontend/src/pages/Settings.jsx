@@ -491,7 +491,7 @@ export default function SettingsView() {
               <>
                 {/* Desktop Table view */}
                 <div className="hidden md:block glass-card overflow-hidden">
-                  <div className="overflow-x-auto">
+                  <div className="relative overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-white/5 bg-surface-900/30">

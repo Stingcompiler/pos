@@ -179,7 +179,7 @@ export default function StockCountList({ onOpen }) {
           />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full text-right text-sm">
                 <thead>
                   <tr className="border-b border-white/5 text-surface-400 text-xs">
