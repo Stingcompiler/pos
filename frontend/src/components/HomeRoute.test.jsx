@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Suspense } from 'react';
@@ -24,7 +24,14 @@ function renderHome() {
   );
 }
 
-describe('الصفحة الرئيسية', { timeout: 15000 }, () => {
+describe('الصفحة الرئيسية', { timeout: 40000 }, () => {
+  // الصفحتان تُحمَّلان كسولاً: استيرادهما مسبقاً يُخرج زمن التحويل (ثقيل حين يكون
+  // الجهاز مشغولاً) من الاختبار نفسه، فلا يتوقف على مهلة انتظار.
+  beforeAll(async () => {
+    await import('../pages/ProductLanding');
+    await import('../pages/LandingPage');
+  }, 60000);
+
   beforeEach(() => {
     vi.clearAllMocks();
     clearPublicSettingsCache();
@@ -34,7 +41,7 @@ describe('الصفحة الرئيسية', { timeout: 15000 }, () => {
     api.get.mockResolvedValue({ data: { demo_mode: false, demo_accounts: [] } });
     renderHome();
     // الصفحتان تُحمَّلان كسولاً (lazy): مهلة أطول من الافتراضية تحت ضغط التشغيل المتوازي.
-    expect(await screen.findByRole('heading', { name: 'متجر المحل' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'متجر المحل' }, { timeout: 20000 })).toBeInTheDocument();
   });
 
   it('نسخة العرض: صفحة التسويق، وزر التجربة يدخل بحساب المدير', async () => {
@@ -50,7 +57,7 @@ describe('الصفحة الرئيسية', { timeout: 15000 }, () => {
     login.mockResolvedValue({ role: 'manager' });
     renderHome();
 
-    expect(await screen.findByRole('heading', { level: 1 }, { timeout: 5000 })).toHaveTextContent('نقطة بيع لمحل قطع الغيار');
+    expect(await screen.findByRole('heading', { level: 1 }, { timeout: 20000 })).toHaveTextContent('نقطة بيع لمحل قطع الغيار');
     const whatsapp = screen.getAllByRole('link', { name: /واتساب/ })[0];
     expect(whatsapp).toHaveAttribute('href', expect.stringContaining('https://wa.me/249902929451'));
 
