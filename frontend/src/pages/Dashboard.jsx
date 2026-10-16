@@ -3,76 +3,22 @@ import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/useAuth';
 import { apiErrorMessage } from '../utils/api';
-import { formatCurrency } from '../utils/currency';
-import {
-  Package, TrendingUp, ShoppingCart, AlertTriangle,
-  ArrowUpRight, Loader2, RotateCcw, HandCoins, Receipt,
-  CreditCard, Users, ArrowLeft, AlertCircle, RefreshCw,
-} from 'lucide-react';
+import { formatCurrency as formatMoney } from '../utils/currency';
+import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
-const statCards = [
-  {
-    key: 'total_parts',
-    label: 'إجمالي القطع',
-    icon: Package,
-    color: 'from-primary-600 to-primary-500',
-    shadow: 'shadow-primary-600/20',
-  },
-  {
-    key: 'low_stock_count',
-    label: 'تنبيهات المخزون',
-    icon: AlertTriangle,
-    color: 'from-warning-500 to-warning-400',
-    shadow: 'shadow-warning-500/20',
-  },
-  {
-    key: 'today_invoices',
-    label: 'فواتير اليوم',
-    icon: ShoppingCart,
-    color: 'from-accent-600 to-accent-400',
-    shadow: 'shadow-accent-500/20',
-  },
-  {
-    key: 'today_revenue',
-    label: 'إيرادات اليوم (صافية)',
-    icon: TrendingUp,
-    color: 'from-success-500 to-success-400',
-    shadow: 'shadow-success-500/20',
-    isCurrency: true,
-  },
+// حركة المال اليوم: تُعرض كقائمة هادئة لا كبطاقة لكل رقم.
+const todayLines = [
+  { key: 'today_collections', label: 'تحصيل ديون' },
+  { key: 'today_credit_sales', label: 'مبيعات آجلة اليوم' },
+  { key: 'today_returns', label: 'مرتجعات' },
+  { key: 'today_expenses', label: 'مصروفات' },
 ];
 
-// حركة المال اليوم: ما يحتاج المدير متابعته قبل إقفال اليومية.
-const todayCards = [
-  {
-    key: 'today_collections',
-    label: 'تحصيل ديون اليوم',
-    hint: 'دفعات استلمتها من العملاء على حساباتهم',
-    icon: HandCoins,
-    tone: 'text-success-400 bg-success-500/10',
-  },
-  {
-    key: 'today_credit_sales',
-    label: 'مبيعات آجلة اليوم',
-    hint: 'ما بيع اليوم ولم يُدفع بعد',
-    icon: CreditCard,
-    tone: 'text-warning-400 bg-warning-500/10',
-  },
-  {
-    key: 'today_returns',
-    label: 'مرتجعات اليوم',
-    hint: 'قيمة ما أُرجع من فواتير',
-    icon: RotateCcw,
-    tone: 'text-danger-400 bg-danger-500/10',
-  },
-  {
-    key: 'today_expenses',
-    label: 'مصروفات اليوم',
-    hint: 'المصروفات المسجّلة بتاريخ اليوم',
-    icon: Receipt,
-    tone: 'text-primary-400 bg-primary-600/10',
-  },
-];
+// المبالغ الصحيحة بلا «٫٠٠» في اللوحة؛ الكسور تظهر فقط عند وجودها.
+const formatCurrency = (value) => {
+  const n = Number(value) || 0;
+  return Number.isInteger(n) ? n.toLocaleString('ar-SA') : formatMoney(n);
+};
 
 const formatCount = (value) => (Number(value) || 0).toLocaleString('ar-SA');
 
@@ -129,162 +75,112 @@ export default function Dashboard() {
   }
 
   const outstanding = Number(stats.outstanding_credit) || 0;
+  const lowStock = Number(stats.low_stock_count) || 0;
+  const pendingOrders = Number(stats.pending_public_orders) || 0;
+
+  // ما يحتاج تدخل المدير الآن؛ لا يظهر البند إلا إذا كان له معنى.
+  const actions = [
+    lowStock > 0 && {
+      key: 'stock', to: '/spare-parts', cta: 'راجع المخزون', tone: 'text-warning-400',
+      title: 'قطع عند حد التنبيه أو أقل', value: formatCount(lowStock),
+    },
+    pendingOrders > 0 && {
+      key: 'orders', to: '/dashboard/orders', cta: 'فتح الطلبات', tone: 'text-white',
+      title: 'طلبات خارجية بانتظار البيع', value: formatCount(pendingOrders),
+    },
+    outstanding > 0 && {
+      key: 'debts', to: '/customers', cta: 'العملاء المدينون', tone: 'text-warning-400',
+      title: 'ديون العملاء المستحقة', value: `${formatCurrency(outstanding)} ج.س`,
+    },
+  ].filter(Boolean);
 
   return (
-    <div className="animate-fade-in">
-      {/* Header */}
-      <div className="mb-8">
+    <div className="animate-fade-in space-y-6">
+      <header>
         <h1 className="text-2xl font-bold text-white mb-1">
-          مرحباً، {user?.first_name || user?.username} 👋
+          مرحباً، {user?.first_name || user?.username}
         </h1>
-        <p className="text-surface-400">
-          إليك ملخص الأعمال لهذا اليوم
-        </p>
-      </div>
+        <p className="text-surface-400">ملخص اليوم</p>
+      </header>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-        {statCards.map((card, i) => (
-          <div
-            key={card.key}
-            className={`glass-card p-5 group hover:scale-[1.02] transition-all duration-300 ${card.shadow}`}
-            style={{ animationDelay: `${i * 0.1}s` }}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center`}>
-                <card.icon className="w-5 h-5 text-white" />
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-surface-500 group-hover:text-white transition-colors" />
-            </div>
-            <p className="text-2xl font-bold text-white mb-1">
-              {card.isCurrency
-                ? formatCurrency(stats[card.key])
-                : formatCount(stats[card.key])
-              }
-            </p>
-            <p className="text-sm text-surface-400">{card.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* حركة اليوم المالية */}
-      <section aria-labelledby="today-money-heading" className="mb-8 space-y-4">
-        <h2 id="today-money-heading" className="text-sm font-bold text-surface-300">حركة اليوم المالية</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {todayCards.map((card) => (
-            <div key={card.key} className="glass-card p-4 flex items-start gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${card.tone}`}>
-                <card.icon className="w-5 h-5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm text-surface-400">{card.label}</p>
-                <p className="text-xl font-bold text-white nums">{formatCurrency(stats[card.key])}</p>
-                <p className="text-[11px] text-surface-500 mt-0.5">{card.hint}</p>
-              </div>
+      {/* الإيراد: الرقم الوحيد المضخّم، وتفصيل حركته بجانبه */}
+      <section aria-labelledby="revenue-heading" className="glass-card grid lg:grid-cols-[1fr_minmax(0,22rem)]">
+        <div className="p-6">
+          <h2 id="revenue-heading" className="text-sm text-surface-400">إيرادات اليوم (صافية)</h2>
+          <p className="text-4xl sm:text-5xl font-extrabold text-white nums mt-2">
+            {formatCurrency(stats.today_revenue)} <span className="text-lg font-medium text-surface-400">ج.س</span>
+          </p>
+          <p className="text-sm text-surface-400 mt-3">
+            من {formatCount(stats.today_invoices)} فاتورة
+          </p>
+        </div>
+        <dl className="p-6 border-t lg:border-t-0 lg:border-s border-surface-700 divide-y divide-surface-700">
+          {todayLines.map((line) => (
+            <div key={line.key} className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+              <dt className="text-sm text-surface-400">{line.label}</dt>
+              <dd className="text-sm font-bold text-white nums">{formatCurrency(stats[line.key])}</dd>
             </div>
           ))}
-        </div>
-
-        {/* إجمالي ديون العملاء: يفتح قائمة العملاء لمتابعة المدينين */}
-        <Link
-          to="/customers"
-          className="glass-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:border-warning-500/30 transition-colors"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-warning-500/10 text-warning-400 flex items-center justify-center shrink-0">
-              <Users className="w-6 h-6" aria-hidden="true" />
-            </div>
-            <div>
-              <p className="text-sm text-surface-400">إجمالي ديون العملاء المستحقة</p>
-              <p className={`text-2xl font-bold nums ${outstanding > 0 ? 'text-warning-400' : 'text-white'}`}>
-                {formatCurrency(outstanding)} <span className="text-xs font-medium text-surface-400">ج.س</span>
-              </p>
-              <p className="text-[11px] text-surface-500">مجموع أرصدة العملاء المدينين (البيع الآجل ناقص ما حُصّل)</p>
-            </div>
-          </div>
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-primary-400 group-hover:text-primary-300">
-            عرض العملاء المدينين
-            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-          </span>
-        </Link>
+        </dl>
       </section>
 
-      {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Low Stock Alerts */}
-        <div className="glass-card p-6">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-warning-400" />
-            تنبيهات المخزون المنخفض
-          </h2>
-          {stats.low_stock_items?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.low_stock_items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-surface-900/50 border border-white/5
-                    hover:border-warning-500/20 transition-colors"
+      {/* ما يحتاج تدخلك الآن */}
+      <section aria-labelledby="actions-heading" className="glass-card">
+        <h2 id="actions-heading" className="text-base font-bold text-white p-5 pb-3">ما يحتاج تدخلك الآن</h2>
+        {actions.length > 0 ? (
+          <ul className="divide-y divide-surface-700 border-t border-surface-700">
+            {actions.map((a) => (
+              <li key={a.key} className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4">
+                <span className={`text-2xl font-extrabold nums sm:w-44 shrink-0 ${a.tone}`}>{a.value}</span>
+                <span className="flex-1 text-sm text-surface-200">{a.title}</span>
+                <Link
+                  to={a.to}
+                  className="inline-flex items-center justify-center h-11 px-5 rounded-xl border border-surface-700 text-sm font-semibold text-white hover:bg-surface-700/50 transition-colors"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-white">{item.name}</p>
-                    <p className="text-xs text-surface-400">{item.part_number}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-warning-400">
-                      {item.stock_quantity}
-                    </span>
-                    <span className="text-xs text-surface-500">/ {item.min_stock_alert}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-surface-500 text-sm text-center py-8">
-              لا توجد تنبيهات حالياً 🎉
-            </p>
-          )}
-        </div>
+                  {a.cta}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-surface-400 px-5 pb-5">لا شيء يحتاج تدخلك الآن.</p>
+        )}
+      </section>
 
-        {/* Quick Stats */}
-        <div className="glass-card p-6">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-accent-400" />
-            الإحصائيات العامة
-          </h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-900/50 border border-white/5">
-              <span className="text-surface-300">إجمالي الفواتير</span>
-              <span className="text-xl font-bold text-white">
-                {formatCount(stats.total_invoices)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-900/50 border border-white/5">
-              <span className="text-surface-300">إجمالي الإيرادات</span>
-              <span className="text-xl font-bold text-accent-400">
-                {formatCurrency(stats.total_revenue)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-900/50 border border-white/5">
-              <span className="text-surface-300">إجمالي القطع</span>
-              <span className="text-xl font-bold text-white">
-                {formatCount(stats.total_parts)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-900/50 border border-white/5">
-              <span className="text-surface-300">الطلبات الخارجية قيد الانتظار</span>
-              <span className="text-xl font-bold text-warning-400">
-                {formatCount(stats.pending_public_orders)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-900/50 border border-white/5">
-              <span className="text-surface-300">إجمالي الطلبات الخارجية</span>
-              <span className="text-xl font-bold text-white">
-                {formatCount(stats.total_public_orders)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* المخزون المنخفض */}
+      <section aria-labelledby="low-stock-heading" className="glass-card">
+        <h2 id="low-stock-heading" className="text-base font-bold text-white p-5 pb-3">المخزون المنخفض</h2>
+        {stats.low_stock_items?.length > 0 ? (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-surface-400 text-xs border-y border-surface-700">
+                <th scope="col" className="text-start font-medium px-5 py-2">القطعة</th>
+                <th scope="col" className="text-end font-medium px-5 py-2">الرصيد</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-700">
+              {stats.low_stock_items.map((item) => (
+                <tr key={item.id}>
+                  <td className="px-5 py-3">
+                    <span className="block text-white">{item.name}</span>
+                    <span dir="ltr" className="block text-xs text-surface-400 text-end">{item.part_number}</span>
+                  </td>
+                  <td className="px-5 py-3 text-end whitespace-nowrap">
+                    <span className="font-bold text-warning-400 nums">{formatCount(item.stock_quantity)}</span>
+                    <span className="text-xs text-surface-400"> من {formatCount(item.min_stock_alert)}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-surface-400 px-5 pb-5">كل القطع فوق حد التنبيه.</p>
+        )}
+      </section>
+
+      <p className="text-xs text-surface-500 text-center nums">
+        {formatCount(stats.total_invoices)} فاتورة · {formatCount(stats.total_parts)} قطعة · إجمالي الإيرادات {formatCurrency(stats.total_revenue)} ج.س
+      </p>
     </div>
   );
 }
