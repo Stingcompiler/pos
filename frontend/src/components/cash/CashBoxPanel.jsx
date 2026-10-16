@@ -40,7 +40,7 @@ export default function CashBoxPanel({
       </h2>
 
       <div className="space-y-2 text-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-surface-900/50 border border-white/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-surface-700">
           {closed ? (
             <span className="text-surface-300">نقد بداية اليوم</span>
           ) : (

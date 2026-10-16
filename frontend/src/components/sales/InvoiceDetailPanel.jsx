@@ -16,7 +16,7 @@ const KIND_STYLES = {
 
 function SummaryTile({ label, value, tone = 'text-white' }) {
   return (
-    <div className="p-3 rounded-xl bg-surface-900/50 border border-white/5">
+    <div>
       <span className="block text-[11px] text-surface-400 mb-0.5">{label}</span>
       <span className={`text-sm font-bold ${tone}`}>{value}</span>
     </div>
@@ -37,7 +37,7 @@ function PaymentRow({ payment }) {
   const isRefund = payment.kind === 'refund';
   const bank = payment.bank_account_name || payment.bank_name;
   return (
-    <li className="p-3 rounded-xl bg-surface-900/50 border border-white/5 text-xs space-y-1.5">
+    <li className="py-3 border-b border-surface-700 last:border-b-0 text-xs space-y-1.5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${KIND_STYLES[payment.kind] || KIND_STYLES.sale}`}>

@@ -201,7 +201,7 @@ function CreditSummary({ ids, customer, payment, onChange, totalCents }) {
           ['حد الائتمان', credit.limitCents, 'text-white'],
           ['المتاح', credit.availableCents, credit.allowed ? 'text-success-400' : 'text-danger-400'],
         ].map(([label, cents, color]) => (
-          <div key={label} className="px-1.5 py-1.5 rounded-xl bg-surface-900/50 border border-white/5 min-w-0">
+          <div key={label} className="px-1.5 py-1.5 min-w-0 border-s border-surface-700 first:border-s-0">
             <dt className="text-[11px] text-surface-400 truncate">{label}</dt>
             <dd className={`text-xs font-bold mt-0.5 tabular-nums truncate ${color}`}>{money(cents)}</dd>
           </div>
