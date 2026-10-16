@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/useAuth';
 import { apiErrorMessage } from '../utils/api';
-import { formatCurrency as formatMoney } from '../utils/currency';
+import { formatCurrencyCompact as formatCurrency } from '../utils/currency';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 // حركة المال اليوم: تُعرض كقائمة هادئة لا كبطاقة لكل رقم.
@@ -13,12 +13,6 @@ const todayLines = [
   { key: 'today_returns', label: 'مرتجعات' },
   { key: 'today_expenses', label: 'مصروفات' },
 ];
-
-// المبالغ الصحيحة بلا «٫٠٠» في اللوحة؛ الكسور تظهر فقط عند وجودها.
-const formatCurrency = (value) => {
-  const n = Number(value) || 0;
-  return Number.isInteger(n) ? n.toLocaleString('ar-SA') : formatMoney(n);
-};
 
 const formatCount = (value) => (Number(value) || 0).toLocaleString('ar-SA');
 

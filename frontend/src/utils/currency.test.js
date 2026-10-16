@@ -3,6 +3,7 @@ import {
   CURRENCY_SUFFIX,
   DEFAULT_LOCALE,
   formatCurrency,
+  formatCurrencyCompact,
   formatPrice,
 } from './currency';
 
@@ -68,5 +69,14 @@ describe('formatPrice', () => {
 
   it('اللاحقة هي «ج.س» بالشكل المعروض للعميل', () => {
     expect(CURRENCY_SUFFIX).toBe(' ج.س');
+  });
+});
+
+describe('formatCurrencyCompact', () => {
+  it('يحذف الكسور الصفرية فقط', () => {
+    expect(formatCurrencyCompact(25)).toBe('٢٥');
+    expect(formatCurrencyCompact('248000.00')).toBe('٢٤٨٬٠٠٠');
+    expect(formatCurrencyCompact(1234.5)).toBe('١٬٢٣٤٫٥٠');
+    expect(formatCurrencyCompact(null)).toBe('٠');
   });
 });
