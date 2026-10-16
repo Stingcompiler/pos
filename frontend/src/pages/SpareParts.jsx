@@ -14,6 +14,7 @@ import {
 } from '../components/parts/partForm';
 import { CHECKBOX_CLASS } from '../components/parts/styles';
 import ScrollTable from '../components/ScrollTable';
+import useMediaQuery from '../hooks/useMediaQuery';
 import {
   Plus, Search, Edit3, Trash2, X, Loader2, AlertTriangle, ChevronLeft, ChevronRight,
   Image as ImageIcon, History, FileSpreadsheet, Download, Upload, Printer, RefreshCw, Clock } from 'lucide-react';
@@ -40,6 +41,7 @@ export default function SpareParts() {
   const canDelete = user?.role === 'manager';
   // سعر الشراء لا يصل من الخادم للموظف أصلاً؛ نخفي العمود بدل عرض أصفار مضلّلة.
   const canSeeCost = canEdit;
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   // ── القائمة ──
   const [parts, setParts] = useState([]);
@@ -411,6 +413,101 @@ export default function SpareParts() {
 
       {/* Table */}
       <div className="glass-card overflow-hidden">
+        {!isDesktop ? (
+          <div aria-busy={loading} className={loading && parts.length > 0 && !loadError ? 'opacity-60 transition-opacity' : ''}>
+            {loadError ? (
+              <div role="alert" className="flex flex-col items-center gap-3 py-12 px-4 text-center">
+                <p className="text-danger-400 text-sm font-semibold">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={loadParts}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 h-11 rounded-xl bg-surface-800 text-surface-200 text-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  إعادة المحاولة
+                </button>
+              </div>
+            ) : loading && parts.length === 0 ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-6 h-6 text-primary-500 animate-spin mx-auto" aria-label="جارٍ التحميل" />
+              </div>
+            ) : parts.length === 0 ? (
+              <p className="py-12 px-4 text-center text-surface-400">
+                {filtersActive ? 'لا توجد قطع مطابقة للبحث أو التصفية.' : 'لا توجد قطع غيار مسجّلة بعد.'}
+              </p>
+            ) : (
+              <ul className="divide-y divide-surface-700">
+                {parts.map((part) => {
+                  const stale = isPriceStale(part, loadedAt);
+                  const isSelected = Boolean(selected[part.id]);
+                  return (
+                    <li key={part.id} className={`flex items-start gap-3 px-4 py-3.5 ${isSelected ? 'bg-primary-600/5' : ''}`}>
+                      <input
+                        type="checkbox"
+                        aria-label={`تحديد ${part.name} للملصقات`}
+                        checked={isSelected}
+                        onChange={() => toggleSelect(part)}
+                        className={`${CHECKBOX_CLASS} mt-1`}
+                      />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-bold text-white leading-snug">{part.name}</p>
+                          <p className="font-extrabold text-accent-400 nums whitespace-nowrap">{formatCurrency(part.selling_price)}</p>
+                        </div>
+                        <p className="text-xs text-surface-400 flex flex-wrap gap-x-2">
+                          <span dir="ltr" className="font-mono">{part.part_number}</span>
+                          {part.brand && <span>{part.brand}</span>}
+                          {part.category_name && <span>{part.category_name}</span>}
+                          {part.shelf_location && <span>الرف {part.shelf_location}</span>}
+                        </p>
+                        <p className="text-xs flex flex-wrap gap-x-3">
+                          <span className={part.is_low_stock ? 'font-bold text-warning-400' : 'text-surface-300'}>
+                            المخزون {part.stock_quantity}{part.is_low_stock ? ' — منخفض' : ''}
+                          </span>
+                          {canSeeCost && <span className="text-surface-400 nums">الشراء {formatCurrency(part.purchase_price)}</span>}
+                          {stale && (
+                            <span className="text-warning-400">سعر قديم ({priceAgeDays(part.price_updated_at, loadedAt)} يوماً)</span>
+                          )}
+                        </p>
+                        <div className="flex items-center gap-1 -ms-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setMovementsPart(part)}
+                            aria-label={`سجل حركات ${part.name}`}
+                            className={`${ICON_BTN} hover:text-accent-400`}
+                          >
+                            <History className="w-4 h-4" />
+                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => setFormPartId(part.id)}
+                              aria-label={`تعديل ${part.name}`}
+                              className={`${ICON_BTN} hover:text-primary-400`}
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(part)}
+                              aria-label={`حذف ${part.name}`}
+                              className={`${ICON_BTN} hover:text-danger-400`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ) : (
         <ScrollTable>
           <table className="w-full text-sm" aria-busy={loading}>
             <thead>
@@ -624,6 +721,7 @@ export default function SpareParts() {
             </tbody>
           </table>
         </ScrollTable>
+        )}
 
         {/* Pagination */}
         {!loadError && count > 0 && (
