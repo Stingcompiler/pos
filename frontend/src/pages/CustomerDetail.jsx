@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../context/useAuth';
 import useReceiptSettings from '../hooks/useReceiptSettings';
 import { apiErrorMessage } from '../utils/api';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency, formatCurrencyCompact } from '../utils/currency';
 import PrintArea from '../components/PrintArea';
 import Pagination from '../components/sales/Pagination';
 import PaymentMethodBadge from '../components/sales/PaymentMethodBadge';
@@ -248,18 +248,18 @@ export default function CustomerDetail() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="الرصيد المستحق"
-          value={formatCurrency(customer.balance)}
+          value={formatCurrencyCompact(customer.balance)}
           tone={balanceCents > 0 ? 'text-danger-400' : balanceCents < 0 ? 'text-success-400' : 'text-white'}
           hint={balanceCents < 0 ? 'رصيد لصالح العميل' : balanceCents === 0 ? 'لا ديون قائمة' : undefined}
         />
         <MetricCard
           label="حد الائتمان"
-          value={limitCents > 0 ? formatCurrency(customer.credit_limit) : 'غير مسموح بالآجل'}
+          value={limitCents > 0 ? formatCurrencyCompact(customer.credit_limit) : 'غير مسموح بالآجل'}
           tone={limitCents > 0 ? 'text-white' : 'text-surface-400'}
         />
         <MetricCard
           label="الائتمان المتاح"
-          value={limitCents > 0 ? formatCurrency(centsToAmount(availableCreditCents(customer))) : '—'}
+          value={limitCents > 0 ? formatCurrencyCompact(centsToAmount(availableCreditCents(customer))) : '—'}
           tone={limitCents > 0 && availableCreditCents(customer) === 0 ? 'text-warning-400' : 'text-white'}
           hint={limitCents > 0 && availableCreditCents(customer) === 0 ? 'استُنفد الحد' : undefined}
         />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { apiErrorMessage } from '../utils/api';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency, formatCurrencyCompact } from '../utils/currency';
 import PrintArea from '../components/PrintArea';
 import useReceiptSettings from '../hooks/useReceiptSettings';
 import {
@@ -327,21 +327,21 @@ export default function Reports() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Kpi
                 label="إجمالي المبيعات"
-                value={formatCurrency(o.gross_revenue)}
+                value={formatCurrencyCompact(o.gross_revenue)}
                 icon={TrendingUp}
                 tone="primary"
                 hint="قيمة الفواتير قبل خصم المرتجعات"
               />
               <Kpi
                 label="المرتجعات"
-                value={formatCurrency(o.returns_total)}
+                value={formatCurrencyCompact(o.returns_total)}
                 icon={RotateCcw}
                 tone="danger"
                 hint={`${fmtNum(o.returns_count)} عملية إرجاع خلال الفترة`}
               />
               <Kpi
                 label="صافي المبيعات"
-                value={formatCurrency(o.total_revenue)}
+                value={formatCurrencyCompact(o.total_revenue)}
                 icon={Scale}
                 tone="success"
                 hint="إجمالي المبيعات بعد خصم المرتجعات"
@@ -363,7 +363,7 @@ export default function Reports() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Kpi
                 label="نقدي"
-                value={formatCurrency(o.cash_sales)}
+                value={formatCurrencyCompact(o.cash_sales)}
                 icon={Wallet}
                 tone="success"
                 hint={`دفعات نقدية في ${fmtNum(o.cash_count)} فاتورة`}
@@ -372,7 +372,7 @@ export default function Reports() {
               </Kpi>
               <Kpi
                 label="تحويل بنكي"
-                value={formatCurrency(o.bank_sales)}
+                value={formatCurrencyCompact(o.bank_sales)}
                 icon={CreditCard}
                 tone="primary"
                 hint={`تحويلات في ${fmtNum(o.bank_count)} فاتورة`}
@@ -381,7 +381,7 @@ export default function Reports() {
               </Kpi>
               <Kpi
                 label="مبيعات آجلة"
-                value={formatCurrency(o.credit_sales)}
+                value={formatCurrencyCompact(o.credit_sales)}
                 icon={HandCoins}
                 tone="warning"
                 hint="الجزء غير المدفوع من الفواتير (دَين على العملاء)"
@@ -397,21 +397,21 @@ export default function Reports() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Kpi
                 label="ربح المبيعات قبل المصروفات"
-                value={formatCurrency(o.total_profit)}
+                value={formatCurrencyCompact(o.total_profit)}
                 icon={TrendingUp}
                 tone="accent"
                 hint="سعر البيع ناقص التكلفة، صافياً من المرتجعات"
               />
               <Kpi
                 label="المصروفات"
-                value={formatCurrency(o.expenses_total)}
+                value={formatCurrencyCompact(o.expenses_total)}
                 icon={Receipt}
                 tone="warning"
                 hint="إيجار، كهرباء، رواتب... المسجّلة خلال الفترة"
               />
               <Kpi
                 label="صافي الربح"
-                value={formatCurrency(o.net_profit)}
+                value={formatCurrencyCompact(o.net_profit)}
                 icon={PiggyBank}
                 tone={netProfitNegative ? 'danger' : 'success'}
                 hint={netProfitNegative ? 'المصروفات أكبر من ربح المبيعات' : 'ربح المبيعات بعد خصم المصروفات'}

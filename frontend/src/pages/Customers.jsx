@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { apiErrorMessage } from '../utils/api';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrencyCompact as formatCurrency } from '../utils/currency';
 import Pagination from '../components/sales/Pagination';
 import ModalShell from '../components/sales/ModalShell';
 import useDebouncedValue from '../components/sales/useDebouncedValue';

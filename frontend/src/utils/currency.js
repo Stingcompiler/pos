@@ -41,3 +41,12 @@ export function formatCurrency(value, { locale = DEFAULT_LOCALE } = {}) {
 export function formatPrice(value, { locale = DEFAULT_LOCALE } = {}) {
   return `${formatCurrency(value, { locale })}${CURRENCY_SUFFIX}`;
 }
+
+/**
+ * للبطاقات والملخصات المعروضة فقط: المبلغ الصحيح بلا «٫٠٠»، وإن كان فيه كسر
+ * يبقى بخانتين. الجداول والطباعة والإقرارات تستعمل formatCurrency بخانتين دائماً.
+ */
+export function formatCurrencyCompact(value, { locale = DEFAULT_LOCALE } = {}) {
+  const n = toNumber(value);
+  return Number.isInteger(n) ? n.toLocaleString(locale) : formatCurrency(n, { locale });
+}
