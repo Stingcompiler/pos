@@ -1,30 +1,11 @@
 {
   "motion": {
-    "src/components/NotificationBadge.jsx": 1,
     "src/components/PWAInstallBadge.jsx": 1,
     "src/components/shop/CheckoutModal.jsx": 1,
     "src/index.css": 1,
     "src/pages/FilterPage.jsx": 2,
     "src/pages/LandingPage.jsx": 5,
-    "src/pages/Messages.jsx": 1,
-    "src/pages/Orders.jsx": 2,
-    "src/pages/ProductDetails.jsx": 2,
-    "src/pages/SingleSupplier.jsx": 2,
-    "src/pages/SpareParts.jsx": 1,
-    "src/pages/SuppliersList.jsx": 2
-  },
-  "strip": {
-    "src/components/NotificationBadge.jsx": 1,
-    "src/pages/CustomerDetail.jsx": 1,
-    "src/pages/Reports.jsx": 1
-  },
-  "hover-scale": {
-    "src/components/Sidebar.jsx": 1,
-    "src/pages/Customers.jsx": 1,
-    "src/pages/FilterPage.jsx": 3,
-    "src/pages/LandingPage.jsx": 8,
-    "src/pages/SingleSupplier.jsx": 1,
-    "src/pages/SuppliersList.jsx": 1
+    "src/pages/ProductDetails.jsx": 2
   },
   "nested-tile": {
     "src/components/cash/CashBoxPanel.jsx": 1,
@@ -33,30 +14,23 @@
     "src/pages/Customers.jsx": 2
   },
   "icon-box": {
-    "src/components/cash/PageStates.jsx": 1,
     "src/components/pos/CustomerPicker.jsx": 1,
-    "src/pages/CarModels.jsx": 1,
-    "src/pages/Categories.jsx": 1,
     "src/pages/Customers.jsx": 1,
-    "src/pages/Invoices.jsx": 2,
+    "src/pages/Invoices.jsx": 1,
     "src/pages/Messages.jsx": 1,
     "src/pages/Orders.jsx": 4,
     "src/pages/POS.jsx": 1,
     "src/pages/ProductLanding.jsx": 1,
-    "src/pages/SpareParts.jsx": 1,
-    "src/pages/SuppliersList.jsx": 1,
-    "src/pages/Users.jsx": 1
+    "src/pages/SuppliersList.jsx": 1
   },
   "gradient": {
-    "src/components/cash/PageStates.jsx": 1,
-    "src/pages/CarModels.jsx": 1,
-    "src/pages/Categories.jsx": 1,
     "src/pages/FilterPage.jsx": 1,
-    "src/pages/Invoices.jsx": 1,
     "src/pages/LandingPage.jsx": 4,
     "src/pages/ProductDetails.jsx": 1,
-    "src/pages/ProductLanding.jsx": 1,
-    "src/pages/SpareParts.jsx": 1,
-    "src/pages/Users.jsx": 1
+    "src/pages/ProductLanding.jsx": 1
+  },
+  "hover-scale": {
+    "src/pages/FilterPage.jsx": 3,
+    "src/pages/LandingPage.jsx": 8
   }
 }

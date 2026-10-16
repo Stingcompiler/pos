@@ -300,7 +300,7 @@ export default function SingleSupplier() {
   if (!supplier) {
     return (
       <div className="glass-card p-8 text-center max-w-md mx-auto space-y-4" dir="rtl">
-        <AlertCircle className="w-12 h-12 text-danger-500 mx-auto animate-pulse" />
+        <AlertCircle className="w-12 h-12 text-danger-500 mx-auto" />
         <h3 className="text-white font-bold text-lg">خطأ في تحميل الملف</h3>
         <p className="text-sm text-surface-400">{loadError || 'تعذر تحميل بيانات المورد.'}</p>
         <div className="flex gap-2">
@@ -493,7 +493,7 @@ export default function SingleSupplier() {
               {supplier.supplied_parts.map(part => (
                 <div
                   key={part.id}
-                  className="glass-card p-4 hover:scale-[1.01] transition-all duration-200 border-t border-white/5 space-y-3 flex flex-col justify-between"
+                  className="glass-card p-4 transition-all duration-200 border-t border-white/5 space-y-3 flex flex-col justify-between"
                 >
                   <div className="space-y-2">
                     <div className="flex justify-between items-start gap-2">
@@ -532,7 +532,7 @@ export default function SingleSupplier() {
 
                     <div className="text-left space-y-0.5">
                       <span className="text-surface-500 text-[10px] block">الكمية المتوفرة</span>
-                      <span className={`font-mono font-bold text-sm ${part.is_low_stock ? 'text-danger-400 animate-pulse' : 'text-success-400'}`}>
+                      <span className={`font-mono font-bold text-sm ${part.is_low_stock ? 'text-danger-400' : 'text-success-400'}`}>
                         {part.stock_quantity} قطعة
                       </span>
                     </div>

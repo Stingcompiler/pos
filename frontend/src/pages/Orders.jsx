@@ -108,7 +108,7 @@ export default function Orders() {
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-warning-500/10 text-warning-400 border border-warning-500/20">
-            <Clock className="w-3.5 h-3.5 animate-pulse" />
+            <Clock className="w-3.5 h-3.5" />
             قيد الانتظار
           </span>
         );
@@ -171,7 +171,7 @@ export default function Orders() {
             <p className="text-xs text-surface-400">طلبات قيد الانتظار</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-warning-500/10 border border-warning-500/20 flex items-center justify-center text-warning-400">
-            <Clock className="w-5 h-5 animate-pulse" />
+            <Clock className="w-5 h-5" />
           </div>
         </div>
 

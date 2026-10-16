@@ -5,7 +5,7 @@ import Pagination from '../components/sales/Pagination';
 import useDebouncedValue from '../components/sales/useDebouncedValue';
 import usePagedList from '../hooks/usePagedList';
 import { useAuth } from '../context/useAuth';
-import { Car, Plus, Edit3, Trash2, X, Loader2, Save, Search, Image as ImageIcon } from 'lucide-react';
+import { Car, Plus, Edit3, Trash2, X, Loader2, Save, Search } from 'lucide-react';
 
 const PAGE_SIZE = 25;
 
@@ -105,9 +105,6 @@ export default function CarModels() {
     <div className="animate-fade-in select-none">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-warning-500 to-warning-400 flex items-center justify-center shadow-md shadow-warning-600/10">
-            <Car className="w-5 h-5 text-white" />
-          </div>
           <div>
             <h1 className="text-xl font-bold text-white">موديلات السيارات</h1>
             <p className="text-sm text-surface-400">إدارة الماركات والموديلات والسيارات المدعومة</p>

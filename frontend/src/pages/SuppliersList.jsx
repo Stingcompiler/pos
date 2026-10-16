@@ -126,7 +126,7 @@ export default function SuppliersList() {
         </div>
       ) : loadError ? (
         <div className="glass-card p-6 border-danger-500/10 flex flex-col items-center justify-center text-center space-y-3">
-          <AlertCircle className="w-12 h-12 text-danger-500 animate-pulse" />
+          <AlertCircle className="w-12 h-12 text-danger-500" />
           <h3 className="text-white font-bold">حدث خطأ أثناء تحميل البيانات</h3>
           <p className="text-sm text-surface-400 max-w-md">{loadError}</p>
           <button
@@ -138,7 +138,7 @@ export default function SuppliersList() {
         </div>
       ) : filteredSuppliers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-          <Truck className="w-16 h-16 text-surface-700 animate-bounce" />
+          <Truck className="w-16 h-16 text-surface-700" />
           <h3 className="text-white font-bold">{debouncedSearch ? 'لا نتائج لهذا البحث' : 'لا يوجد موردون مسجلون'}</h3>
           <p className="text-sm text-surface-500 max-w-sm">
             قم بإضافة المورد الأول للبدء بتسجيل صفقات توريد قطع الغيار.
@@ -149,7 +149,7 @@ export default function SuppliersList() {
           {filteredSuppliers.map((sup) => (
             <div
               key={sup.id}
-              className="glass-card p-5 hover:scale-[1.01] hover:border-primary-500/20 transition-all duration-200 flex flex-col justify-between space-y-4 border-t border-white/5"
+              className="glass-card p-5 hover:border-primary-500/20 transition-all duration-200 flex flex-col justify-between space-y-4 border-t border-white/5"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between">

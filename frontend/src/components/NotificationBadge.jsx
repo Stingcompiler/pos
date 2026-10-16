@@ -105,7 +105,7 @@ export default function NotificationBadge() {
       >
         <Bell className="w-5 h-5" aria-hidden="true" />
         {unreadCount > 0 && (
-          <span aria-hidden="true" className="absolute -top-1 -left-1 bg-dal-red text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center animate-pulse border border-surface-950 font-mono">
+          <span aria-hidden="true" className="absolute -top-1 -left-1 bg-dal-red text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center border border-surface-950 font-mono">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -149,7 +149,7 @@ export default function NotificationBadge() {
                   key={notif.id}
                   onClick={() => handleNotificationClick(notif)}
                   className={`p-4 transition-all duration-200 cursor-pointer flex items-start gap-3 hover:bg-white/[0.03] ${
-                    !notif.is_read ? 'bg-primary-500/[0.03] border-r-2 border-primary-500' : ''
+                    !notif.is_read ? 'bg-primary-500/[0.03]' : ''
                   }`}
                 >
                   {/* Icon depending on type */}

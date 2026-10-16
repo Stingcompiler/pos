@@ -301,7 +301,7 @@ export default function Customers() {
               return (
                 <div
                   key={cust.id}
-                  className="glass-card p-5 hover:scale-[1.01] transition-all duration-200 flex flex-col justify-between space-y-4 border-t border-white/5"
+                  className="glass-card p-5 transition-all duration-200 flex flex-col justify-between space-y-4 border-t border-white/5"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
