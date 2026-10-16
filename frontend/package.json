@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint:ui": "node scripts/lint-ui.mjs",
+    "shots": "node scripts/shots.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
@@ -32,6 +34,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "jsdom": "^30.1.1",
+    "playwright": "^1.63.0",
     "vite": "^8.0.1",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.1"

@@ -4,7 +4,7 @@ import FileInput from '../components/FileInput';
 import Pagination from '../components/sales/Pagination';
 import usePagedList from '../hooks/usePagedList';
 import { useAuth } from '../context/useAuth';
-import { FolderOpen, Plus, Edit3, Trash2, X, Loader2, Save, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit3, Trash2, X, Loader2, Save, Image as ImageIcon } from 'lucide-react';
 
 const PAGE_SIZE = 24;
 
@@ -88,9 +88,6 @@ export default function Categories() {
     <div className="animate-fade-in select-none">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-600 to-accent-400 flex items-center justify-center shadow-md shadow-accent-600/10">
-            <FolderOpen className="w-5 h-5 text-white" />
-          </div>
           <div>
             <h1 className="text-xl font-bold text-white">الفئات</h1>
             <p className="text-sm text-surface-400">تصنيفات قطع الغيار</p>

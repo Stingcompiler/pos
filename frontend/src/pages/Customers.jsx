@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import {
-  Users, Search, Plus, Phone, MapPin, Mail, MessageSquare,
-  Edit2, Trash2, Loader2, AlertCircle, UserCheck, RefreshCw, X, CheckCircle2,
+  Users, Search, Plus, MessageSquare,
+  Edit2, Trash2, Loader2, AlertCircle, RefreshCw, X, CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { apiErrorMessage } from '../utils/api';
@@ -301,7 +301,7 @@ export default function Customers() {
               return (
                 <div
                   key={cust.id}
-                  className="glass-card p-5 hover:scale-[1.01] transition-all duration-200 flex flex-col justify-between space-y-4 border-t border-white/5"
+                  className="glass-card p-5 transition-all duration-200 flex flex-col justify-between space-y-4"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
@@ -310,14 +310,10 @@ export default function Customers() {
                         onClick={() => navigate(`/customers/${cust.id}`)}
                         className="flex items-center gap-3 cursor-pointer group text-right min-w-0"
                       >
-                        <div className="w-10 h-10 shrink-0 rounded-full bg-primary-600/10 border border-primary-500/20 flex items-center justify-center group-hover:bg-primary-600/20 transition-all duration-200">
-                          <UserCheck className="w-5 h-5 text-primary-400 group-hover:text-primary-300 transition-colors" aria-hidden="true" />
-                        </div>
                         <div className="min-w-0">
                           <h3 className="text-sm font-bold text-white leading-tight group-hover:text-primary-400 transition-colors truncate">
                             {cust.name}
                           </h3>
-                          <span className="text-[10px] text-surface-500">معرف العميل #{cust.id}</span>
                         </div>
                       </button>
 
@@ -359,49 +355,38 @@ export default function Customers() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="p-2 rounded-lg bg-surface-900/50 border border-white/5">
-                        <span className="block text-[10px] text-surface-500">الرصيد</span>
-                        <span className={`text-sm font-bold ${balanceTone(cust.balance)}`}>
-                          {formatCurrency(cust.balance)}
-                        </span>
+                    <dl className="grid grid-cols-2 gap-4 pt-1">
+                      <div>
+                        <dt className="text-xs text-surface-400">الرصيد</dt>
+                        <dd className={`text-sm font-bold nums ${balanceTone(cust.balance)}`}>{formatCurrency(cust.balance)}</dd>
                       </div>
-                      <div className="p-2 rounded-lg bg-surface-900/50 border border-white/5">
-                        <span className="block text-[10px] text-surface-500">حد الائتمان</span>
-                        <span className={`text-sm font-bold ${hasLimit ? 'text-white' : 'text-surface-500'}`}>
+                      <div>
+                        <dt className="text-xs text-surface-400">حد الائتمان</dt>
+                        <dd className={`text-sm font-bold nums ${hasLimit ? 'text-white' : 'text-surface-400'}`}>
                           {hasLimit ? formatCurrency(cust.credit_limit) : 'لا آجل'}
-                        </span>
+                        </dd>
                       </div>
-                    </div>
+                    </dl>
 
-                    <div className="space-y-2 text-xs text-surface-300 pt-2 border-t border-white/3">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-surface-500" aria-hidden="true" />
-                        <a href={`tel:${cust.phone}`} className="hover:text-primary-400 font-mono" dir="ltr">
+                    <div className="space-y-2 text-xs text-surface-300">
+                      <div><a href={`tel:${cust.phone}`} className="hover:text-primary-400 font-mono" dir="ltr">
                           {cust.phone}
-                        </a>
-                      </div>
+                        </a></div>
 
                       {cust.location && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-surface-500" aria-hidden="true" />
-                          <span>{cust.location}</span>
-                        </div>
+                        <div><span>{cust.location}</span></div>
                       )}
 
                       {cust.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-surface-500" aria-hidden="true" />
-                          <a href={`mailto:${cust.email}`} className="hover:text-primary-400">
+                        <div><a href={`mailto:${cust.email}`} className="hover:text-primary-400">
                             {cust.email}
-                          </a>
-                        </div>
+                          </a></div>
                       )}
                     </div>
                   </div>
 
                   {/* Contact Links */}
-                  <div className="pt-3 border-t border-white/5 flex gap-2 justify-end">
+                  <div className="flex justify-end">
                     {cust.whatsapp_number && (
                       <a
                         href={`https://wa.me/${cust.whatsapp_number.replace(/\D/g, '')}`}
@@ -413,13 +398,6 @@ export default function Customers() {
                         واتساب
                       </a>
                     )}
-                    <a
-                      href={`tel:${cust.phone}`}
-                      className="px-3 py-3 md:py-1.5 rounded-lg bg-primary-600/15 hover:bg-primary-600/25 text-primary-400 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <Phone className="w-3.5 h-3.5" aria-hidden="true" />
-                      اتصال مباشر
-                    </a>
                   </div>
                 </div>
               );

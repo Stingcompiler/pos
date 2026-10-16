@@ -199,7 +199,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
               } ${collapsed && !isOpen ? 'md:justify-center' : ''}`
             }
           >
-            <item.icon className="w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110" />
+            <item.icon className="w-5 h-5 flex-shrink-0" />
             {(!collapsed || isOpen) && (
               <span className="animate-fade-in whitespace-nowrap">{item.label}</span>
             )}

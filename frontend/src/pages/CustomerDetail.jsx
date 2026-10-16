@@ -32,9 +32,9 @@ const ENTRY_TYPES = {
   return: { label: 'مرتجع', className: 'bg-warning-500/15 text-warning-400' },
 };
 
-function MetricCard({ label, value, tone = 'text-white', border, hint }) {
+function MetricCard({ label, value, tone = 'text-white', hint }) {
   return (
-    <div className={`glass-card p-4 space-y-1.5 border-r-4 ${border}`}>
+    <div className={`glass-card p-4 space-y-1.5 `}>
       <span className="text-xs font-semibold text-surface-400 block">{label}</span>
       <p className={`text-lg font-bold tracking-wide ${tone}`}>{value}</p>
       {hint && <p className="text-[11px] text-surface-500">{hint}</p>}
@@ -250,26 +250,22 @@ export default function CustomerDetail() {
           label="الرصيد المستحق"
           value={formatCurrency(customer.balance)}
           tone={balanceCents > 0 ? 'text-danger-400' : balanceCents < 0 ? 'text-success-400' : 'text-white'}
-          border={balanceCents > 0 ? 'border-r-danger-500' : 'border-r-success-500'}
           hint={balanceCents < 0 ? 'رصيد لصالح العميل' : balanceCents === 0 ? 'لا ديون قائمة' : undefined}
         />
         <MetricCard
           label="حد الائتمان"
           value={limitCents > 0 ? formatCurrency(customer.credit_limit) : 'غير مسموح بالآجل'}
           tone={limitCents > 0 ? 'text-white' : 'text-surface-400'}
-          border="border-r-primary-500"
         />
         <MetricCard
           label="الائتمان المتاح"
           value={limitCents > 0 ? formatCurrency(centsToAmount(availableCreditCents(customer))) : '—'}
           tone={limitCents > 0 && availableCreditCents(customer) === 0 ? 'text-warning-400' : 'text-white'}
-          border="border-r-accent-500"
           hint={limitCents > 0 && availableCreditCents(customer) === 0 ? 'استُنفد الحد' : undefined}
         />
         <MetricCard
           label="النوع والخصم الفعلي"
           value={`${customer.customer_type_display} · ${discount}%`}
-          border="border-r-warning-500"
           hint={customDiscount ? 'خصم خاص بهذا العميل' : 'خصم نوعه الافتراضي'}
         />
       </div>

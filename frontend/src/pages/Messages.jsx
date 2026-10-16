@@ -57,7 +57,7 @@ export default function Messages() {
         </div>
       ) : messages.length === 0 ? (
         <div className="glass-card py-20 flex flex-col items-center justify-center text-center">
-          <Mail className="w-12 h-12 text-surface-600 opacity-30 mb-4 animate-bounce" />
+          <Mail className="w-12 h-12 text-surface-600 opacity-30 mb-4" />
           <h3 className="text-lg font-bold text-white">لا توجد رسائل جديدة</h3>
           <p className="text-sm text-surface-400 mt-1">ستظهر هنا أي رسائل يرسلها العملاء من النموذج العام.</p>
         </div>

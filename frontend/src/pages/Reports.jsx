@@ -53,9 +53,9 @@ function Kpi({ label, value, hint, icon, tone = 'primary', money = true, childre
     warning: 'border-r-warning-500 text-warning-400',
     danger: 'border-r-danger-500 text-danger-400',
   };
-  const [border, iconColor] = tones[tone].split(' ');
+  const [, iconColor] = tones[tone].split(' ');
   return (
-    <div className={`glass-card p-5 space-y-2 border-r-4 ${border}`}>
+    <div className={`glass-card p-5 space-y-2 `}>
       <div className="flex justify-between items-start gap-2">
         <span className="text-xs font-semibold text-surface-400">{label}</span>
         <Icon className={`w-4 h-4 ${iconColor}`} aria-hidden="true" />

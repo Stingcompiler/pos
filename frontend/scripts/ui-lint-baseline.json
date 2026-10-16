@@ -1,0 +1,29 @@
+{
+  "motion": {
+    "src/components/PWAInstallBadge.jsx": 1,
+    "src/components/shop/CheckoutModal.jsx": 1,
+    "src/index.css": 1,
+    "src/pages/FilterPage.jsx": 2,
+    "src/pages/LandingPage.jsx": 5,
+    "src/pages/ProductDetails.jsx": 2
+  },
+  "icon-box": {
+    "src/components/pos/CustomerPicker.jsx": 1,
+    "src/pages/Invoices.jsx": 1,
+    "src/pages/Messages.jsx": 1,
+    "src/pages/Orders.jsx": 4,
+    "src/pages/POS.jsx": 1,
+    "src/pages/ProductLanding.jsx": 1,
+    "src/pages/SuppliersList.jsx": 1
+  },
+  "gradient": {
+    "src/pages/FilterPage.jsx": 1,
+    "src/pages/LandingPage.jsx": 4,
+    "src/pages/ProductDetails.jsx": 1,
+    "src/pages/ProductLanding.jsx": 1
+  },
+  "hover-scale": {
+    "src/pages/FilterPage.jsx": 3,
+    "src/pages/LandingPage.jsx": 8
+  }
+}

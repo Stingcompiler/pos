@@ -15,9 +15,8 @@ import {
 import { CHECKBOX_CLASS } from '../components/parts/styles';
 import ScrollTable from '../components/ScrollTable';
 import {
-  Package, Plus, Search, Edit3, Trash2, X, Loader2, AlertTriangle, ChevronLeft, ChevronRight,
-  Image as ImageIcon, History, FileSpreadsheet, Download, Upload, Printer, RefreshCw, Clock,
-} from 'lucide-react';
+  Plus, Search, Edit3, Trash2, X, Loader2, AlertTriangle, ChevronLeft, ChevronRight,
+  Image as ImageIcon, History, FileSpreadsheet, Download, Upload, Printer, RefreshCw, Clock } from 'lucide-react';
 
 const TOOLBAR_BTN =
   'flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-surface-800 border border-white/5 text-surface-200 text-sm ' +
@@ -248,9 +247,6 @@ export default function SpareParts() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-primary-500 flex items-center justify-center shadow-md shadow-primary-600/10">
-            <Package className="w-5 h-5 text-white" />
-          </div>
           <div>
             <h1 className="text-xl font-bold text-white">قطع الغيار</h1>
             <p className="text-sm text-surface-400">إدارة المخزون والقطع المتوفرة</p>
@@ -580,7 +576,7 @@ export default function SpareParts() {
                           className={`flex items-center gap-1 font-bold ${part.is_low_stock ? 'text-warning-400' : 'text-surface-300'}`}
                           title={part.is_low_stock ? `عند حد التنبيه (${part.min_stock_alert}) أو أقل` : undefined}
                         >
-                          {part.is_low_stock && <AlertTriangle className="w-3.5 h-3.5 animate-pulse" aria-hidden="true" />}
+                          {part.is_low_stock && <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />}
                           {part.stock_quantity}
                           {part.is_low_stock && <span className="sr-only">(منخفض)</span>}
                         </span>

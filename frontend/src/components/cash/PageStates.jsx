@@ -6,14 +6,10 @@ import { AlertCircle, Inbox, Loader2, RefreshCw } from 'lucide-react';
  * تبدو للمستخدم كأنه «لا توجد بيانات» فيتخذ قراراً خاطئاً.
  */
 
-export function PageHeader({ icon, title, subtitle, gradient = 'from-primary-600 to-primary-400', children }) {
-  const Icon = icon;
+export function PageHeader({ title, subtitle, children }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
-          <Icon className="w-5 h-5 text-white" aria-hidden="true" />
-        </div>
         <div>
           <h1 className="text-xl font-bold text-white">{title}</h1>
           {subtitle && <p className="text-sm text-surface-400">{subtitle}</p>}

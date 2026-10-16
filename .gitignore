@@ -82,3 +82,6 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 .tox/
+
+# لقطات مراجعة الواجهة (npm run shots)
+frontend/shots/
