@@ -36,7 +36,7 @@ function AmountInput({ id, label, value, onChange, placeholder = '0.00' }) {
   );
 }
 
-/** المبلغ المستلم والباقي للعميل — للعرض فقط، المبلغ المسجّل هو الإجمالي. */
+/** المبلغ المستلم والباقي للعميل. الأقل من الإجمالي يمنع الإتمام (انظر buildPaymentPlan). */
 function CashTendered({ id, totalCents, tendered, onTenderedChange }) {
   const tenderedCents = parseAmountInput(tendered);
   const hasChange = tenderedCents > 0 && tenderedCents >= totalCents;
@@ -58,8 +58,8 @@ function CashTendered({ id, totalCents, tendered, onTenderedChange }) {
       </div>
       {Number.isNaN(tenderedCents) && <p className="text-xs text-danger-400">مبلغ غير صالح.</p>}
       {tenderedCents > 0 && tenderedCents < totalCents && (
-        <p className="text-xs text-warning-400">
-          المبلغ المستلم أقل من الإجمالي بـ {money(totalCents - tenderedCents)}.
+        <p role="alert" className="text-xs text-danger-400">
+          المبلغ المستلم أقل من الإجمالي بـ {money(totalCents - tenderedCents)}؛ لن يُتمّ البيع حتى يكتمل المبلغ أو تُمسح الخانة.
         </p>
       )}
     </div>

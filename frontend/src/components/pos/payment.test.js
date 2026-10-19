@@ -5,10 +5,34 @@ const bankDetails = { bankAccount: '3', referenceId: ' TRX-77 ', senderAccountNu
 const creditCustomer = { id: 9, name: 'ورشة النور', credit_limit: '1000.00', balance: '200.00' };
 const noCreditCustomer = { id: 10, name: 'أحمد', credit_limit: '0.00', balance: '0.00' };
 
-const plan = (payment, { totalCents = 50000, customer = null, hasBankAccounts = true } = {}) =>
-  buildPaymentPlan({ payment: { ...EMPTY_PAYMENT, ...payment }, totalCents, customer, hasBankAccounts });
+const plan = (payment, { totalCents = 50000, customer = null, hasBankAccounts = true, tenderedCents = null } = {}) =>
+  buildPaymentPlan({ payment: { ...EMPTY_PAYMENT, ...payment }, totalCents, customer, hasBankAccounts, tenderedCents });
 
 describe('buildPaymentPlan', () => {
+  describe('المبلغ المستلم في النقدي', () => {
+    it('الأقل من الإجمالي (حتى الصفر) يمنع البيع ولا يبني دفعات', () => {
+      for (const tenderedCents of [0, 100, 49999]) {
+        const result = plan({ mode: 'cash' }, { tenderedCents });
+        expect(result.payments).toBeNull();
+        expect(result.error).toMatch('أقل من الإجمالي');
+      }
+    });
+
+    it('المساوي والأكبر والفارغ (null) تنجح بدفعة الإجمالي', () => {
+      for (const tenderedCents of [50000, 60000, null]) {
+        expect(plan({ mode: 'cash' }, { tenderedCents }).payments).toEqual([{ method: 'cash', amount: '500.00' }]);
+      }
+    });
+
+    it('القيمة غير الصالحة (NaN) تمنع البيع', () => {
+      expect(plan({ mode: 'cash' }, { tenderedCents: NaN }).error).toMatch('مبلغاً صحيحاً');
+    });
+
+    it('الفاتورة بصفر لا تتأثر بالمستلم', () => {
+      expect(plan({ mode: 'cash' }, { totalCents: 0, tenderedCents: 0 }).error).toBeNull();
+    });
+  });
+
   it('النقدي يرسل الإجمالي كاملاً بغض النظر عن المبلغ المستلم', () => {
     expect(plan({ mode: 'cash' })).toEqual({
       error: null,

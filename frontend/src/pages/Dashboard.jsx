@@ -83,7 +83,7 @@ export default function Dashboard() {
       title: 'طلبات خارجية بانتظار البيع', value: formatCount(pendingOrders),
     },
     outstanding > 0 && {
-      key: 'debts', to: '/customers', cta: 'العملاء المدينون', tone: 'text-warning-400',
+      key: 'debts', to: '/customers?filter=debtors', cta: 'العملاء المدينون', tone: 'text-warning-400',
       title: 'ديون العملاء المستحقة', value: `${formatCurrency(outstanding)} ج.س`,
     },
   ].filter(Boolean);

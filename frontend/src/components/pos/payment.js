@@ -78,8 +78,9 @@ const cashPayment = (cents) => ({ method: 'cash', amount: centsToAmount(cents) }
  *
  * `error` نص يمنع الإتمام (وعندها `payments` = null). الباقي غير المدفوع
  * يصبح آجلاً على العميل، فلا يُسمح به إلا لعميل له حد ائتمان يتسع له.
+ * `tenderedCents` المستلم نقداً (اختياري): الأقل من الإجمالي يمنع البيع النقدي.
  */
-export function buildPaymentPlan({ payment, totalCents, customer, hasBankAccounts }) {
+export function buildPaymentPlan({ payment, totalCents, customer, hasBankAccounts, tenderedCents = null }) {
   const fail = (error, extra = {}) => ({ error, payments: null, paidCents: 0, creditCents: 0, ...extra });
   const done = (payments, paidCents) => {
     const creditCents = totalCents - paidCents;
@@ -92,6 +93,14 @@ export function buildPaymentPlan({ payment, totalCents, customer, hasBankAccount
 
   switch (payment.mode) {
     case 'cash':
+      // المستلم اختياري، لكن إن كُتب أقل من الإجمالي فالنقد المسجّل ناقص: لا نسجّله كاملاً.
+      if (Number.isNaN(tenderedCents)) return fail(INVALID_AMOUNT);
+      if (tenderedCents !== null && tenderedCents < totalCents) {
+        return fail(
+          `المبلغ المستلم أقل من الإجمالي بـ ${money(totalCents - tenderedCents)}. `
+          + 'اجعله مساوياً أو أكبر، أو امسحه، أو اختر «آجل» أو «مختلط».',
+        );
+      }
       return done([cashPayment(totalCents)], totalCents);
 
     case 'bank': {
