@@ -106,7 +106,11 @@ export default function POS() {
   const pricing = priceCart(cart, customer?.effective_discount_percent);
   const totalCents = pricing.totalCents;
   const plan = buildPaymentPlan({
-    payment, totalCents, customer, hasBankAccounts: bankAccounts.length > 0,
+    payment,
+    totalCents,
+    customer,
+    hasBankAccounts: bankAccounts.length > 0,
+    tenderedCents: payment.mode === 'cash' ? parseAmountInput(tendered) : null,
   });
 
   const runSearch = useCallback(async (query) => {

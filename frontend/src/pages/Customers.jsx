@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import {
   Users, Search, Plus, MessageSquare,
@@ -11,6 +11,7 @@ import { formatCurrencyCompact as formatCurrency } from '../utils/currency';
 import Pagination from '../components/sales/Pagination';
 import ModalShell from '../components/sales/ModalShell';
 import useDebouncedValue from '../components/sales/useDebouncedValue';
+import { whatsAppLink } from '../utils/phone';
 import {
   CUSTOMER_TYPE_OPTIONS, CUSTOMER_TYPE_STYLES, cleanParams, isPrivilegedRole, normalizeList, toCents,
 } from '../components/sales/salesUtils';
@@ -53,7 +54,11 @@ export default function Customers() {
   // ─── البحث والفلاتر (من الخادم) ───
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery.trim());
-  const [filter, setFilter] = useState('all');
+  // الفلتر في العنوان (?filter=debtors): اختصار اللوحة يصل مفلتراً ويصمد عند الرجوع وإعادة التحميل.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedFilter = searchParams.get('filter');
+  const filter = FILTERS.some((option) => option.key === requestedFilter) ? requestedFilter : 'all';
+  const setFilter = (key) => setSearchParams(key === 'all' ? {} : { filter: key }, { replace: true });
   const filterKey = JSON.stringify([debouncedSearch, filter]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
@@ -387,9 +392,9 @@ export default function Customers() {
 
                   {/* Contact Links */}
                   <div className="flex justify-end">
-                    {cust.whatsapp_number && (
+                    {whatsAppLink(cust.whatsapp_number) && (
                       <a
-                        href={`https://wa.me/${cust.whatsapp_number.replace(/\D/g, '')}`}
+                        href={whatsAppLink(cust.whatsapp_number)}
                         target="_blank"
                         rel="noreferrer"
                         className="px-3 py-3 md:py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer"

@@ -19,6 +19,7 @@ import ReturnModal from '../components/sales/ReturnModal';
 import CollectPaymentModal from '../components/sales/CollectPaymentModal';
 import StatementDocument from '../components/sales/StatementDocument';
 import useInvoiceDetails from '../components/sales/useInvoiceDetails';
+import { whatsAppLink } from '../utils/phone';
 import {
   CUSTOMER_TYPE_STYLES, availableCreditCents, centsToAmount, formatDate, formatDateTime,
   isPrivilegedRole, normalizeList, toCents,
@@ -325,9 +326,9 @@ export default function CustomerDetail() {
 
           {/* Social Quick Launch Actions */}
           <div className="pt-4 border-t border-white/5 grid grid-cols-2 gap-2">
-            {customer.whatsapp_number && (
+            {whatsAppLink(customer.whatsapp_number) && (
               <a
-                href={`https://wa.me/${customer.whatsapp_number.replace(/\D/g, '')}`}
+                href={whatsAppLink(customer.whatsapp_number)}
                 target="_blank"
                 rel="noreferrer"
                 className="py-2.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"

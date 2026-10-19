@@ -47,6 +47,21 @@ describe('القائمة الجانبية', () => {
   });
 });
 
+describe('القائمة الجانبية المطوية', () => {
+  afterEach(() => { delete window.matchMedia; });
+
+  it('كل رابط وزر الخروج يحتفظان باسم وصولي وتلميح', () => {
+    setViewport(true);
+    renderSidebar({ isOpen: false, collapsed: true });
+    expect(screen.getByRole('link', { name: 'لوحة التحكم' })).toHaveAttribute('title', 'لوحة التحكم');
+    expect(screen.getByRole('link', { name: 'نقطة البيع' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'تسجيل الخروج' })).toHaveAttribute('title', 'تسجيل الخروج');
+    for (const link of screen.getAllByRole('link')) {
+      expect(link).toHaveAccessibleName();
+    }
+  });
+});
+
 describe('القائمة الجانبية: ثبات العرض', () => {
   afterEach(() => { delete window.matchMedia; });
 

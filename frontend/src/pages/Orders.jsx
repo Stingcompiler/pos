@@ -9,6 +9,7 @@ import { apiErrorMessage } from '../utils/api';
 import SellOrderModal from '../components/orders/SellOrderModal';
 import Pagination from '../components/sales/Pagination';
 import usePagedList from '../hooks/usePagedList';
+import { whatsAppLink } from '../utils/phone';
 
 const PAGE_SIZE = 20;
 const STATUS_FILTERS = [
@@ -116,13 +117,10 @@ export default function Orders() {
   };
 
   // WhatsApp contact helper
-  const getWhatsAppLink = (phone, orderId, name) => {
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const message = encodeURIComponent(
-      `السلام عليكم يا ${name}، بخصوص طلبك رقم #${orderId} من موقعنا الالكتروني لقطع الغيار...`
-    );
-    return `https://wa.me/${cleanPhone}?text=${message}`;
-  };
+  const getWhatsAppLink = (phone, orderId, name) => whatsAppLink(
+    phone,
+    `السلام عليكم يا ${name}، بخصوص طلبك رقم #${orderId} من موقعنا الالكتروني لقطع الغيار...`,
+  );
 
   const counts = summary?.counts || {};
   const totalRevenue = Number(summary?.completed_total || 0);
@@ -309,16 +307,19 @@ export default function Orders() {
                           </button>
                         )}
 
-                        {/* WhatsApp CTA */}
-                        <a
-                          href={getWhatsAppLink(order.phone_number, order.id, order.customer_name)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="w-8 h-8 rounded-lg bg-success-500/10 border border-success-500/20 text-success-400 flex items-center justify-center hover:bg-success-500 hover:text-white transition-all shadow-sm"
-                          title="تواصل واتساب"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                        </a>
+                        {/* رقم غير صالح: لا رابط بدل رابط يفتح محادثة خاطئة */}
+                        {getWhatsAppLink(order.phone_number, order.id, order.customer_name) && (
+                          <a
+                            href={getWhatsAppLink(order.phone_number, order.id, order.customer_name)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-8 h-8 rounded-lg bg-success-500/10 border border-success-500/20 text-success-400 flex items-center justify-center hover:bg-success-500 hover:text-white transition-all shadow-sm"
+                            title="تواصل واتساب"
+                            aria-label={`مراسلة ${order.customer_name} على واتساب`}
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </a>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -129,6 +129,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
   // على الجوال المغلقة مزاحة خارج الشاشة فقط: inert يخرجها من التنقل بلوحة
   // المفاتيح ومن قارئ الشاشة، وإلا تلقّى زر خروج غير مرئي التركيز.
   const hiddenOnMobile = !isDesktop && !isOpen;
+  const showLabels = !collapsed || isOpen;
 
   useEffect(() => {
     if (isDesktop || !isOpen) return undefined;
@@ -191,6 +192,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
             to={item.path}
             end={item.path === '/dashboard'}
             onClick={onClose}
+            title={showLabels ? undefined : item.label}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
                 isActive
@@ -200,9 +202,8 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
             }
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
-            {(!collapsed || isOpen) && (
-              <span className="animate-fade-in whitespace-nowrap">{item.label}</span>
-            )}
+            {/* مطوية: يبقى الاسم للقارئ والتلميح، ويخفى بصرياً فقط. */}
+            <span className={showLabels ? 'animate-fade-in whitespace-nowrap' : 'sr-only'}>{item.label}</span>
           </NavLink>
         ))}
       </nav>
@@ -217,12 +218,13 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
         )}
         <button
           onClick={handleLogout}
+          title={showLabels ? undefined : 'تسجيل الخروج'}
           className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium
             text-danger-400 hover:bg-danger-500/10 transition-all duration-200
             ${collapsed && !isOpen ? 'md:justify-center' : ''}`}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {(!collapsed || isOpen) && <span>تسجيل الخروج</span>}
+          <span className={showLabels ? undefined : 'sr-only'}>تسجيل الخروج</span>
         </button>
       </div>
 
