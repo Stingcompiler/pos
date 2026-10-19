@@ -22,6 +22,20 @@ export default function FilterPage() {
 
   // ──── Cart & Checkout Drawer States ────
   const [cartOpen, setCartOpen] = useState(false);
+  const cartDrawerRef = useRef(null);
+  // السلة نافذة حوار: التركيز عليها عند الفتح، Escape يغلقها، ويعود التركيز لمشغّلها.
+  useEffect(() => {
+    if (!cartOpen) return undefined;
+    const opener = document.activeElement;
+    cartDrawerRef.current?.focus();
+    const onKeyDown = (event) => { if (event.key === 'Escape') setCartOpen(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (opener instanceof HTMLElement && document.contains(opener)) opener.focus();
+    };
+  }, [cartOpen]);
+
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   // ──── States ────
@@ -462,6 +476,7 @@ export default function FilterPage() {
       {cartCount > 0 && (
         <button
           onClick={() => setCartOpen(true)}
+          aria-label={`فتح سلة التسوق (${cartCount})`}
           className="fixed bottom-6 left-6 z-40 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl hover:scale-110 active:scale-95 transition-all animate-bounce cursor-pointer"
           style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }}
         >
@@ -476,7 +491,7 @@ export default function FilterPage() {
 
       {/* ──── Cart Drawer ──── */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden" dir="rtl">
+        <div className="fixed inset-0 z-50 overflow-hidden" dir="rtl" role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title" ref={cartDrawerRef} tabIndex={-1}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
           
           <div className="absolute inset-y-0 left-0 max-w-full flex">
@@ -485,7 +500,7 @@ export default function FilterPage() {
               <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-surface-900 text-white">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5 text-primary-400" />
-                  <h3 className="font-extrabold text-sm md:text-base">سلة التسوق ({cartCount})</h3>
+                  <h3 id="cart-drawer-title" className="font-extrabold text-sm md:text-base">سلة التسوق ({cartCount})</h3>
                 </div>
                 <button onClick={() => setCartOpen(false)} aria-label="إغلاق السلة" className="text-gray-400 hover:text-white cursor-pointer">
                   <X className="w-5 h-5" />
@@ -517,9 +532,9 @@ export default function FilterPage() {
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex items-center gap-2 border border-gray-200 rounded-lg p-0.5 bg-white">
-                            <button onClick={() => updateQuantity(item.part.id, item.quantity - 1)} className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100 text-gray-550 font-bold cursor-pointer">-</button>
+                            <button onClick={() => updateQuantity(item.part.id, item.quantity - 1)} aria-label={`تقليل كمية ${item.part.name}`} className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100 text-gray-550 font-bold cursor-pointer">-</button>
                             <span className="text-xs font-mono w-6 text-center text-slate-800 font-bold">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.part.id, item.quantity + 1)} className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100 text-gray-550 font-bold cursor-pointer">+</button>
+                            <button onClick={() => updateQuantity(item.part.id, item.quantity + 1)} aria-label={`زيادة كمية ${item.part.name}`} className="w-6 h-6 rounded flex items-center justify-center hover:bg-gray-100 text-gray-550 font-bold cursor-pointer">+</button>
                           </div>
                           <span className="text-xs font-extrabold text-danger-600 font-mono">{formatCurrency(item.part.selling_price * item.quantity)}</span>
                         </div>

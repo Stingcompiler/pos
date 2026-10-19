@@ -10,8 +10,12 @@ export default function ModalShell({ title, icon: Icon, onClose, busy = false, m
   const dialogRef = useRef(null);
 
   useEffect(() => {
-    // نقل التركيز إلى النافذة حتى يبدأ مستخدم لوحة المفاتيح منها.
+    // نقل التركيز إلى النافذة حتى يبدأ مستخدم لوحة المفاتيح منها، وإعادته لمشغّلها عند الإغلاق.
+    const opener = document.activeElement;
     dialogRef.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement && document.contains(opener)) opener.focus();
+    };
   }, []);
 
   useEffect(() => {

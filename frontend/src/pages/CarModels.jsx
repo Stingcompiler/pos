@@ -5,7 +5,8 @@ import Pagination from '../components/sales/Pagination';
 import useDebouncedValue from '../components/sales/useDebouncedValue';
 import usePagedList from '../hooks/usePagedList';
 import { useAuth } from '../context/useAuth';
-import { Car, Plus, Edit3, Trash2, X, Loader2, Save, Search } from 'lucide-react';
+import { Car, Plus, Edit3, Trash2, Loader2, Save, Search } from 'lucide-react';
+import ModalShell from '../components/sales/ModalShell';
 
 const PAGE_SIZE = 25;
 
@@ -121,7 +122,7 @@ export default function CarModels() {
 
       <div className="relative mb-5">
         <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-        <input type="text" value={searchQuery}
+        <input type="text" aria-label="بحث في موديلات السيارات" value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full pr-12 pl-4 py-3 rounded-xl bg-surface-900/50 border border-white/10 text-white
             placeholder-surface-500 focus:border-primary-500 transition-colors text-sm"
@@ -172,13 +173,13 @@ export default function CarModels() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-center gap-1">
                           {canEdit && (
-                            <button onClick={() => openEdit(model)}
+                            <button onClick={() => openEdit(model)} aria-label={`تعديل ${model.brand} ${model.model_name}`} title="تعديل"
                               className="p-3.5 md:p-2 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-600/10 transition-all cursor-pointer">
                               <Edit3 className="w-4 h-4" />
                             </button>
                           )}
                           {canDelete && (
-                            <button onClick={() => handleDelete(model.id)}
+                            <button onClick={() => handleDelete(model.id)} aria-label={`حذف ${model.brand} ${model.model_name}`} title="حذف"
                               className="p-3.5 md:p-2 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all cursor-pointer">
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -200,47 +201,41 @@ export default function CarModels() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
-          onClick={() => setShowModal(false)}>
-          <div className="w-full max-w-md mx-4 glass-card p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">{editing ? 'تعديل موديل سيارة' : 'إضافة موديل جديد'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-3 md:p-2 rounded-lg text-surface-400 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
-            </div>
-            {error && <div className="p-3 mb-4 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-fade-in">{error}</div>}
+        <ModalShell title={editing ? 'تعديل موديل سيارة' : 'إضافة موديل جديد'} onClose={() => setShowModal(false)} busy={saving} maxWidth="max-w-md">
+            {error && <div role="alert" className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-fade-in">{error}</div>}
             
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-1.5">الشركة المصنعة *</label>
-                <input type="text" required value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} autoFocus
+                <label htmlFor="car-model-field-1" className="block text-xs font-semibold text-surface-300 mb-1.5">الشركة المصنعة *</label>
+                <input id="car-model-field-1" type="text" required value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} autoFocus
                   className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors h-10"
                   placeholder="مثال: Toyota, Hyundai" />
               </div>
               
               <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-1.5">اسم الموديل *</label>
-                <input type="text" required value={form.model_name} onChange={(e) => setForm({ ...form, model_name: e.target.value })}
+                <label htmlFor="car-model-field-2" className="block text-xs font-semibold text-surface-300 mb-1.5">اسم الموديل *</label>
+                <input id="car-model-field-2" type="text" required value={form.model_name} onChange={(e) => setForm({ ...form, model_name: e.target.value })}
                   className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors h-10"
                   placeholder="مثال: Hilux, Accent" />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-1.5">الوصف التوضيحي للسيارة</label>
-                <textarea rows="2" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+                <label htmlFor="car-model-field-3" className="block text-xs font-semibold text-surface-300 mb-1.5">الوصف التوضيحي للسيارة</label>
+                <textarea id="car-model-field-3" rows="2" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="تحدث باختصار عن السيارة أو فئاتها المدعومة..."
                   className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors resize-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-surface-300 mb-1.5">سنة البداية *</label>
-                  <input type="number" required min="1900" max="2099" value={form.year_start}
+                  <label htmlFor="car-model-field-4" className="block text-xs font-semibold text-surface-300 mb-1.5">سنة البداية *</label>
+                  <input id="car-model-field-4" type="number" required min="1900" max="2099" value={form.year_start}
                     onChange={(e) => setForm({ ...form, year_start: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors h-10" dir="ltr" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-surface-300 mb-1.5">سنة النهاية</label>
-                  <input type="number" min="1900" max="2099" value={form.year_end}
+                  <label htmlFor="car-model-field-5" className="block text-xs font-semibold text-surface-300 mb-1.5">سنة النهاية</label>
+                  <input id="car-model-field-5" type="number" min="1900" max="2099" value={form.year_end}
                     onChange={(e) => setForm({ ...form, year_end: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors h-10" dir="ltr"
                     placeholder="حتى الآن" />
@@ -248,10 +243,10 @@ export default function CarModels() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-1.5">شعار أو صورة السيارة</label>
+                <label htmlFor="car-model-field-6" className="block text-xs font-semibold text-surface-300 mb-1.5">شعار أو صورة السيارة</label>
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <FileInput accept="image/*" onChange={(e) => {
+                    <FileInput id="car-model-field-6" accept="image/*" onChange={(e) => {
                       const file = e.target.files[0];
                       if (file) {
                         setImage(file);
@@ -262,7 +257,7 @@ export default function CarModels() {
                   </div>
                   {imagePreview && (
                     <div className="w-12 h-12 rounded-xl border border-white/10 overflow-hidden flex-shrink-0 bg-surface-900">
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={imagePreview} alt="معاينة صورة السيارة" className="w-full h-full object-cover" />
                     </div>
                   )}
                 </div>
@@ -277,8 +272,7 @@ export default function CarModels() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

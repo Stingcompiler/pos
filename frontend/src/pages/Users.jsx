@@ -4,7 +4,8 @@ import Pagination from '../components/sales/Pagination';
 import usePagedList from '../hooks/usePagedList';
 
 const PAGE_SIZE = 25;
-import { Plus, Trash2, X, Loader2, Save } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save } from 'lucide-react';
+import ModalShell from '../components/sales/ModalShell';
 
 export default function Users() {
   const { items: users, count, page, setPage, loading, reload: load } = usePagedList('users/', { pageSize: PAGE_SIZE });
@@ -52,7 +53,7 @@ export default function Users() {
             <td className="px-5 py-3.5 text-white font-medium">{u.username}</td>
             <td className="px-5 py-3.5 text-surface-300">{u.first_name} {u.last_name}</td>
             <td className="px-5 py-3.5"><span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${roleColors[u.role]}`}>{roleLabels[u.role]}</span></td>
-            <td className="px-5 py-3.5 text-center"><button onClick={()=>handleDelete(u.id)} className="p-2 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all"><Trash2 className="w-4 h-4" /></button></td>
+            <td className="px-5 py-3.5 text-center"><button onClick={()=>handleDelete(u.id)} aria-label={`حذف المستخدم ${u.username}`} title="حذف" className="p-2 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all"><Trash2 className="w-4 h-4" /></button></td>
           </tr>
         ))}
       </tbody></table></div></div>
@@ -61,22 +62,19 @@ export default function Users() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={()=>setShowModal(false)}>
-          <div className="w-full max-w-md mx-4 glass-card p-6 animate-scale-in" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5"><h2 className="text-lg font-bold text-white">مستخدم جديد</h2><button onClick={()=>setShowModal(false)} className="p-2 rounded-lg text-surface-400 hover:text-white"><X className="w-5 h-5" /></button></div>
-            {error && <div className="p-3 mb-4 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">{error}</div>}
+        <ModalShell title={'مستخدم جديد'} onClose={() => setShowModal(false)} busy={saving} maxWidth="max-w-md">
+            {error && <div role="alert" className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">{error}</div>}
             <form onSubmit={handleSave} className="space-y-4">
-              <div><label className="block text-sm text-surface-300 mb-1.5">اسم المستخدم *</label><input type="text" required value={form.username} onChange={e=>setForm({...form,username:e.target.value})} autoFocus className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" dir="ltr" /></div>
-              <div><label className="block text-sm text-surface-300 mb-1.5">كلمة المرور *</label><input type="password" required minLength={8} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" dir="ltr" /></div>
-              <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm text-surface-300 mb-1.5">الاسم الأول</label><input type="text" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" /></div><div><label className="block text-sm text-surface-300 mb-1.5">الاسم الأخير</label><input type="text" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" /></div></div>
-              <div><label className="block text-sm text-surface-300 mb-1.5">الدور *</label><select value={form.role} onChange={e=>setForm({...form,role:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors"><option value="employee">موظف</option><option value="supervisor">مشرف</option><option value="manager">مدير</option></select></div>
+              <div><label htmlFor="user-field-1" className="block text-sm text-surface-300 mb-1.5">اسم المستخدم *</label><input id="user-field-1" type="text" required value={form.username} onChange={e=>setForm({...form,username:e.target.value})} autoFocus className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" dir="ltr" /></div>
+              <div><label htmlFor="user-field-2" className="block text-sm text-surface-300 mb-1.5">كلمة المرور *</label><input id="user-field-2" type="password" required minLength={8} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" dir="ltr" /></div>
+              <div className="grid grid-cols-2 gap-4"><div><label htmlFor="user-field-3" className="block text-sm text-surface-300 mb-1.5">الاسم الأول</label><input id="user-field-3" type="text" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" /></div><div><label htmlFor="user-field-4" className="block text-sm text-surface-300 mb-1.5">الاسم الأخير</label><input id="user-field-4" type="text" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors" /></div></div>
+              <div><label htmlFor="user-field-5" className="block text-sm text-surface-300 mb-1.5">الدور *</label><select id="user-field-5" value={form.role} onChange={e=>setForm({...form,role:e.target.value})} className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-sm focus:border-primary-500 transition-colors"><option value="employee">موظف</option><option value="supervisor">مشرف</option><option value="manager">مدير</option></select></div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={()=>setShowModal(false)} className="px-4 py-2.5 rounded-xl bg-surface-800 text-surface-300 text-sm hover:bg-surface-700 transition-colors">إلغاء</button>
                 <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all">{saving?<Loader2 className="w-4 h-4 animate-spin" />:<Save className="w-4 h-4" />} حفظ</button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );
