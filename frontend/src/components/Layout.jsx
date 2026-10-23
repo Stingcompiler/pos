@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import NotificationBadge from './NotificationBadge';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Menu, X } from 'lucide-react';
+import useMediaQuery from '../hooks/useMediaQuery';
 
 const PAGE_TITLES = {
   '/dashboard/settings': 'الإعدادات',
@@ -26,7 +27,11 @@ const PAGE_TITLES = {
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  // التابلت (768–1023px): الشريط مطوي افتراضياً ليبقى للمحتوى عرض كافٍ؛ اختيار المستخدم يسري حتى يتغيّر نطاق العرض.
+  const isWide = useMediaQuery('(min-width: 1024px)');
+  const [collapseChoice, setCollapseChoice] = useState({ wide: isWide, value: null });
+  const collapsed = collapseChoice.wide === isWide && collapseChoice.value !== null ? collapseChoice.value : !isWide;
+  const setCollapsed = useCallback((value) => setCollapseChoice({ wide: isWide, value }), [isWide]);
   const menuButtonRef = useRef(null);
   const wasOpen = useRef(false);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -46,11 +51,11 @@ export default function Layout() {
     return () => { active = false; };
   }, []);
 
-  // عنوان التبويب يميّز الصفحة بدل «اسبير | إدارة المخزون» في كل مكان.
+  // عنوان التبويب والشريط العلوي يميّزان القسم الحالي؛ عنوان h1 يبقى لعنوان الصفحة نفسها.
+  const sectionTitle = Object.entries(PAGE_TITLES).find(([path]) => pathname === path || pathname.startsWith(`${path}/`))?.[1];
   useEffect(() => {
-    const match = Object.entries(PAGE_TITLES).find(([path]) => pathname === path || pathname.startsWith(`${path}/`));
-    document.title = match ? `${match[1]} | اسبير` : 'اسبير';
-  }, [pathname]);
+    document.title = sectionTitle ? `${sectionTitle} | اسبير` : 'اسبير';
+  }, [sectionTitle]);
 
   // إغلاق القائمة على الجوال يعيد التركيز إلى زر فتحها لا إلى أول الصفحة.
   useEffect(() => {
@@ -95,7 +100,7 @@ export default function Layout() {
             >
               <Menu className="w-5 h-5" aria-hidden="true" />
             </button>
-            <h1 className="text-lg font-bold text-white font-cairo">لوحة الإدارة</h1>
+            <p className="text-lg font-bold text-white font-cairo">{sectionTitle || 'لوحة الإدارة'}</p>
           </div>
 
           <div className="flex items-center gap-3">
