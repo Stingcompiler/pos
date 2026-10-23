@@ -21,7 +21,8 @@ export default function FilterPage() {
   const { cart, addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } = useCart();
 
   // ──── Cart & Checkout Drawer States ────
-  const [cartOpen, setCartOpen] = useState(false);
+  // ?cart=1 (القادم من صفحة المنتج) يفتح السلة مباشرة.
+  const [cartOpen, setCartOpen] = useState(() => new URLSearchParams(window.location.search).get('cart') === '1');
   const cartDrawerRef = useRef(null);
   // السلة نافذة حوار: التركيز عليها عند الفتح، Escape يغلقها، ويعود التركيز لمشغّلها.
   useEffect(() => {

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useCart } from '../context/useCart';
 import {
   ArrowRight, MessageSquare, Wrench, Shield, CheckCircle,
-  AlertTriangle, Layers, MapPin, Hash, Loader2
+  AlertTriangle, Layers, MapPin, Hash, Loader2, ShoppingCart
 } from 'lucide-react';
 import api from '../api/axios';
 import { mediaUrl } from '../api/media';
@@ -13,8 +14,11 @@ const getImageUrl = mediaUrl;
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { cart, addToCart } = useCart();
 
   // ──── States ────
+  const [quantity, setQuantity] = useState(1);
+  const [addedCount, setAddedCount] = useState(0);
   const [part, setPart] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [siteName, setSiteName] = useState('اسبير');
@@ -97,8 +101,55 @@ export default function ProductDetails() {
 الرابط: ${partUrl}`;
   const whatsappUrl = `https://wa.me/${rawNumber}?text=${encodeURIComponent(messageText)}`;
 
+  // ──── السلة: الكمية المسموحة = المخزون ناقص ما في السلة أصلاً ────
+  const inStock = part.stock_quantity > 0;
+  const inCart = cart.find((item) => item.part.id === part.id)?.quantity || 0;
+  const available = Math.max(part.stock_quantity - inCart, 0);
+  const chosen = Math.min(quantity, Math.max(available, 1));
+  const handleAdd = () => {
+    if (available <= 0) return;
+    for (let i = 0; i < chosen; i += 1) addToCart(part);
+    setAddedCount(chosen);
+    setQuantity(1);
+  };
+  const buyBox = (
+    <div className="space-y-3">
+      {inStock ? (
+        <div className="flex items-center gap-3">
+          <div role="group" aria-label="الكمية" className="flex items-center gap-1 border border-white/10 rounded-xl p-1">
+            <button type="button" aria-label="تقليل الكمية" disabled={chosen <= 1}
+              onClick={() => setQuantity(chosen - 1)}
+              className="w-9 h-9 rounded-lg hover:bg-white/10 disabled:opacity-40 text-white cursor-pointer">−</button>
+            <span aria-live="polite" className="w-8 text-center font-bold text-white nums">{chosen}</span>
+            <button type="button" aria-label="زيادة الكمية" disabled={chosen >= available}
+              onClick={() => setQuantity(chosen + 1)}
+              className="w-9 h-9 rounded-lg hover:bg-white/10 disabled:opacity-40 text-white cursor-pointer">+</button>
+          </div>
+          <button type="button" onClick={handleAdd} disabled={available <= 0}
+            className="flex-1 h-11 rounded-xl bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer">
+            <ShoppingCart className="w-4 h-4" aria-hidden="true" />
+            أضف إلى السلة
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-danger-400 font-semibold">غير متوفرة حالياً؛ تواصل معنا لمعرفة موعد التوفر.</p>
+      )}
+      {inStock && available <= 0 && (
+        <p className="text-xs text-warning-400">أضفتَ كل الكمية المتوفرة ({inCart}) إلى السلة.</p>
+      )}
+      {inCart > 0 && (
+        <div role="status" className="flex items-center justify-between gap-3 text-xs text-success-400">
+          <span>{addedCount > 0 ? `أُضيفت ${addedCount} إلى السلة. ` : ''}في السلة: {inCart}</span>
+          <button type="button" onClick={() => navigate('/shop?cart=1')} className="font-bold text-primary-400 underline cursor-pointer">
+            عرض السلة وإتمام الطلب
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-surface-950 text-surface-200 select-none pb-24 lg:pb-12 relative overflow-hidden font-sans" dir="rtl">
+    <div className="min-h-screen bg-surface-950 text-surface-200 select-none pb-56 lg:pb-12 relative overflow-hidden font-sans" dir="rtl">
       {/* Background radial overlays */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-0 right-1/4 w-96 h-96 rounded-full bg-primary-600/5 blur-[120px]" />
@@ -161,6 +212,18 @@ export default function ProductDetails() {
                   </span>
                 )}
               </div>
+
+              <dl className="grid grid-cols-2 gap-3 text-xs">
+                {part.part_number && (
+                  <div><dt className="text-surface-500">رقم القطعة</dt><dd dir="ltr" className="font-mono text-white text-right">{part.part_number}</dd></div>
+                )}
+                {part.brand && (
+                  <div><dt className="text-surface-500">الماركة / المصنّع</dt><dd className="text-white">{part.brand}</dd></div>
+                )}
+                {part.quality_grade_display && (
+                  <div><dt className="text-surface-500">درجة الجودة</dt><dd className="text-white">{part.quality_grade_display}</dd></div>
+                )}
+              </dl>
 
               {part.description ? (
                 <div className="pt-2">
@@ -250,7 +313,9 @@ export default function ProductDetails() {
                 </div>
               </div>
 
-              {/* Giant CTA Button */}
+              {buyBox}
+
+              {/* واتساب: خيار آخر للطلب */}
               <a
                 href={whatsappUrl}
                 target="_blank"
@@ -258,7 +323,7 @@ export default function ProductDetails() {
                 className="w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-lg shadow-emerald-600/25 cursor-pointer text-sm"
               >
                 <MessageSquare className="w-5 h-5" />
-                اطلب عبر الواتساب الآن
+                اطلب عبر الواتساب
               </a>
             </div>
           </div>
@@ -266,7 +331,9 @@ export default function ProductDetails() {
       </main>
 
       {/* ──── Fixed-Bottom CTA Panel for Mobile screens ──── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-950/90 backdrop-blur-md border-t border-white/5 px-4 py-3 flex items-center justify-between gap-4 animate-slide-up">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-950/95 backdrop-blur-md border-t border-white/5 px-4 py-3 space-y-3 animate-slide-up">
+        {buyBox}
+        <div className="flex items-center justify-between gap-4">
         <div className="flex-shrink-0">
           <span className="text-[10px] text-surface-500 block">سعر البيع</span>
           <span className="text-base font-black text-accent-400">{formatCurrency(part.selling_price)}</span>
@@ -280,6 +347,7 @@ export default function ProductDetails() {
           <MessageSquare className="w-4 h-4" />
           اطلب بالواتساب
         </a>
+        </div>
       </div>
     </div>
   );
