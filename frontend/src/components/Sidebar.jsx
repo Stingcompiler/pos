@@ -178,7 +178,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, setCollapsed }) {
         <BrandMark className="w-10 h-10 flex-shrink-0 rounded-xl ring-1 ring-white/10" />
         {(!collapsed || isOpen) && (
           <div className="animate-fade-in overflow-hidden">
-            <h1 className="text-base font-bold text-white whitespace-nowrap">اسبير</h1>
+            <p className="text-base font-bold text-white whitespace-nowrap">اسبير</p>
             <p className="text-xs text-surface-400 whitespace-nowrap">نظام الإدارة</p>
           </div>
         )}
