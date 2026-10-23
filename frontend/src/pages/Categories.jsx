@@ -4,7 +4,8 @@ import FileInput from '../components/FileInput';
 import Pagination from '../components/sales/Pagination';
 import usePagedList from '../hooks/usePagedList';
 import { useAuth } from '../context/useAuth';
-import { Plus, Edit3, Trash2, X, Loader2, Save, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit3, Trash2, Loader2, Save, Image as ImageIcon } from 'lucide-react';
+import ModalShell from '../components/sales/ModalShell';
 
 const PAGE_SIZE = 24;
 
@@ -114,7 +115,7 @@ export default function Categories() {
             <div key={cat.id} className="glass-card p-5 group hover:border-primary-500/20 transition-all duration-200">
               <div className="flex items-start gap-4">
                 {cat.image ? (
-                  <img src={cat.image} alt={cat.name} className="w-14 h-14 rounded-xl object-cover border border-white/5 flex-shrink-0" />
+                  <img src={cat.image} alt="" className="w-14 h-14 rounded-xl object-cover border border-white/5 flex-shrink-0" />
                 ) : (
                   <div className="w-14 h-14 rounded-xl bg-surface-900 border border-white/5 flex items-center justify-center flex-shrink-0">
                     <ImageIcon className="w-6 h-6 text-surface-600" />
@@ -131,13 +132,13 @@ export default function Categories() {
                 </div>
                 <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
                   {canEdit && (
-                    <button onClick={() => openEdit(cat)}
+                    <button onClick={() => openEdit(cat)} aria-label={`تعديل الفئة ${cat.name}`} title="تعديل"
                       className="p-3 md:p-1.5 rounded-lg text-surface-400 hover:text-primary-400 hover:bg-primary-600/10 transition-all cursor-pointer">
                       <Edit3 className="w-4 h-4" />
                     </button>
                   )}
                   {canDelete && (
-                    <button onClick={() => handleDelete(cat.id)}
+                    <button onClick={() => handleDelete(cat.id)} aria-label={`حذف الفئة ${cat.name}`} title="حذف"
                       className="p-3 md:p-1.5 rounded-lg text-surface-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all cursor-pointer">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -155,61 +156,54 @@ export default function Categories() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
-          onClick={() => setShowModal(false)}>
-          <div className="w-full max-w-md mx-4 glass-card p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">{editing ? 'تعديل فئة' : 'فئة جديدة'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-3 md:p-2 rounded-lg text-surface-400 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+        <ModalShell title={editing ? 'تعديل فئة' : 'فئة جديدة'} onClose={() => setShowModal(false)} busy={saving} maxWidth="max-w-md">
+          {error && <div role="alert" className="p-3 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-fade-in">{error}</div>}
+
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <label htmlFor="category-name" className="block text-xs font-semibold text-surface-300 mb-1.5">اسم الفئة *</label>
+              <input id="category-name" type="text" required value={name} onChange={(e) => setName(e.target.value)} autoFocus
+                className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors h-10" />
             </div>
-            {error && <div className="p-3 mb-4 rounded-xl bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm animate-fade-in">{error}</div>}
-            
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-1.5">اسم الفئة *</label>
-                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} autoFocus
-                  className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors h-10" />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-1.5">وصف القسم</label>
-                <textarea rows="3" value={description} onChange={(e) => setDescription(e.target.value)}
-                  placeholder="وصف مختصر للفئة لتسهيل التصفح..."
-                  className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors resize-none" />
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-1.5">صورة الفئة التوضيحية</label>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <FileInput accept="image/*" onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        setImage(file);
-                        setImagePreview(URL.createObjectURL(file));
-                      }
-                    }}
-                      className="w-full text-xs text-surface-400 file:mr-0 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-600/10 file:text-primary-400 hover:file:bg-primary-600/20 file:cursor-pointer" />
-                  </div>
-                  {imagePreview && (
-                    <div className="w-12 h-12 rounded-xl border border-white/10 overflow-hidden flex-shrink-0 bg-surface-900">
-                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                  )}
+            <div>
+              <label htmlFor="category-description" className="block text-xs font-semibold text-surface-300 mb-1.5">وصف القسم</label>
+              <textarea id="category-description" rows="3" value={description} onChange={(e) => setDescription(e.target.value)}
+                placeholder="وصف مختصر للفئة لتسهيل التصفح..."
+                className="w-full px-3 py-2.5 rounded-xl bg-surface-900/50 border border-white/10 text-white text-xs focus:border-primary-500 transition-colors resize-none" />
+            </div>
+
+            <div>
+              <label htmlFor="category-image" className="block text-xs font-semibold text-surface-300 mb-1.5">صورة الفئة التوضيحية</label>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <FileInput id="category-image" accept="image/*" onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setImage(file);
+                      setImagePreview(URL.createObjectURL(file));
+                    }
+                  }}
+                    className="w-full text-xs text-surface-400 file:mr-0 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-600/10 file:text-primary-400 hover:file:bg-primary-600/20 file:cursor-pointer" />
                 </div>
+                {imagePreview && (
+                  <div className="w-12 h-12 rounded-xl border border-white/10 overflow-hidden flex-shrink-0 bg-surface-900">
+                    <img src={imagePreview} alt="معاينة صورة الفئة" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
+            </div>
 
-              <div className="flex justify-end gap-3 pt-3">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-xl bg-surface-800 text-surface-300 text-sm hover:bg-surface-700 transition-colors cursor-pointer">إلغاء</button>
-                <button type="submit" disabled={saving}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {editing ? 'تحديث' : 'حفظ'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className="flex justify-end gap-3 pt-3">
+              <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-xl bg-surface-800 text-surface-300 text-sm hover:bg-surface-700 transition-colors cursor-pointer">إلغاء</button>
+              <button type="submit" disabled={saving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {editing ? 'تحديث' : 'حفظ'}
+              </button>
+            </div>
+          </form>
+        </ModalShell>
       )}
     </div>
   );
